@@ -1,11 +1,18 @@
 import os
+import re
 import time
+import random # send mail
+import string # send mail
+import smtplib # send mail
 import hashlib
 import asyncio
 from typing import Optional
 from dataclasses import dataclass
 from typing import Optional, List
 from collections import namedtuple
+from email.mime.text import MIMEText # send mail
+from email.mime.multipart import MIMEMultipart # send mail
+import bcrypt # type: ignore
 import aiosqlite # type: ignore
 from mutagen import File # type: ignore
 from flask_cors import CORS # type: ignore
@@ -37,10 +44,8 @@ ENV_DIR = f"{ROOT_PATH}{os.environ.get('ENV_DIR')}"
 MUSIC_DIR = f"{ROOT_PATH}{os.environ.get('MUSIC_DIR')}"
 DB_FILE = f"{ENV_DIR}/data/data.db"
 
-print(ROOT_PATH)
-print(ENV_DIR)
-print(MUSIC_DIR)
-print(DB_FILE)
+GMAIL=os.environ.get('GMAIL')
+GMAIL_PASSWORD=os.environ.get('GMAIL_PASSWORD')
 
 ##C ----------------------------CLASSES----------------------------
 # region
@@ -80,6 +85,8 @@ class Song:
 ##C ----------------------------CLASSES----------------------------
 
 ##A ------------------------------API------------------------------
+# region
+##M --------------------MUSIC-------------------
 # region
 @app.route('/api/ping')
 def pong():
@@ -184,6 +191,16 @@ async def play_song():
         app.logger.error(f"Error serving {track_id}: {str(e)}")
         abort(500)
 # endregion
+##M --------------------MUSIC-------------------
+
+##U --------------------USER--------------------
+# region
+@app.route('/api/register_user')
+async def register_user():
+    print("")
+# endregion
+##U --------------------USER--------------------
+# endregion
 ##A ------------------------------API------------------------------
 
 ##F ---------------------------FUNCTIONS---------------------------
@@ -261,6 +278,50 @@ async def sql(query, params=None, fetch_results=False, fetch_success=False, max_
     
     print(f"Failed to execute query after {max_retries} attempts")
     return False if fetch_success else None
+
+def send_verification_email(to_email, verification_code):
+    # Email configuration
+    smtp_server = "smtp.gmail.com"
+    smtp_port = 587
+    sender_email = GMAIL
+    sender_password = GMAIL_PASSWORD
+
+    # Create message
+    message = MIMEMultipart()
+    message["From"] = sender_email
+    message["To"] = to_email
+    message["Subject"] = "Your Verification Code"
+
+    # Email body
+    body = f"Your verification code is: {verification_code}"
+    message.attach(MIMEText(body, "plain"))
+
+    # Send email
+    try:
+        with smtplib.SMTP(smtp_server, smtp_port) as server:
+            server.starttls()
+            server.login(sender_email, sender_password)
+            server.send_message(message)
+        print("Verification email sent successfully")
+    except Exception as e:
+        print(f"Error sending email: {e}")
+
+def generate_verification_code(length = 6) -> str:
+    return ''.join(random.randint(0, 9) for _ in range(length))
+
+def hash_password(password):
+    # Convert the password to bytes
+    password_bytes = password.encode('utf-8')
+    # Generate a salt and hash the password
+    salt = bcrypt.gensalt()
+    hashed_password = bcrypt.hashpw(password_bytes, salt)
+    return hashed_password
+
+def verify_password(plain_password, hashed_password):
+    # Convert the plain_password to bytes
+    password_bytes = plain_password.encode('utf-8')
+    # Check if the plain password matches the hashed password
+    return bcrypt.checkpw(password_bytes, hashed_password)
 # endregion
 ##F ---------------------------FUNCTIONS---------------------------
 
@@ -521,7 +582,40 @@ async def init_db():
         print(f"Error initializing database: {e}")
         raise
 
+# TODO user_song_data and user_song_history implementation
 
+# js: ^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$ 
+# py: r'^[\w\.-]+@[\w\.-]+\.\w{2,4}$'
+async def create_user(username: str, email: str, password: str) -> bool:
+    try:
+        created_at = time.time()
+        hashed_password = hash_password(password)
+        await sql("""
+            INSERT INTO user
+            (username, email, password, created_at)
+            VALUES (?,?,?,?)
+        """, [username, email, hashed_password, created_at])
+        return True
+    except Exception as e:
+        print(e)
+        return False
+
+async def login(username: str, password: str) -> bool:
+    try:
+        user = await sql("SELEC * FROM user WHERE username = ?", [username])
+        
+        if not user:
+            return False
+        
+        hashed_password = user[0]['password']
+
+        if verify_password(password, hashed_password):
+            return True
+        else:
+            return False
+    except Exception as e:
+        print(e)
+        return False
 # endregion
 ##D --------------------DATA BASE--------------------
 # endregion

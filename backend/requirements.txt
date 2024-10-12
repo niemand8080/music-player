@@ -6,3 +6,4 @@ Flask-Executor # ==1.0.0
 flask[async]
 mutagen # ==1.47.0
 python-dotenv # ==1.0.1
+bcrypt
