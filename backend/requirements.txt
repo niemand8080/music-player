@@ -1,0 +1,8 @@
+aiosqlite # ==0.20.0
+asgiref==3.8.1
+Flask # ==3.0.3
+Flask-Cors # ==5.0.0
+Flask-Executor # ==1.0.0
+flask[async]
+mutagen # ==1.47.0
+python-dotenv # ==1.0.1
