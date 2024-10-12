@@ -7,7 +7,7 @@ const Page = () => {
   const { isPlaying, setIsPlaying } = useAudio();
   return (
     <div className="flex h-screen items-center justify-center gap-5">
-      Libary
+      Library
       <Button onClick={() => setIsPlaying(!isPlaying)}>
         {isPlaying ? "True" : "False"}
       </Button>

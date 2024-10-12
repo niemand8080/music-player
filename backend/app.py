@@ -425,7 +425,7 @@ async def init_db():
         # Create songs table
         await sql("""
         CREATE TABLE IF NOT EXISTS songs (
-            id INTEGER UNIQUE PRIMARY KEY AUTOINCREMENT,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
             file_exists INTEGER DEFAULT 1,
             o_artist_name TEXT,
@@ -441,7 +441,7 @@ async def init_db():
         # Create songs_data table
         await sql("""
         CREATE TABLE IF NOT EXISTS songs_data (
-            id INTEGER UNIQUE PRIMARY KEY AUTOINCREMENT,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
             artist_track_id TEXT,
             album TEXT,
@@ -457,18 +457,71 @@ async def init_db():
         # Create artists table
         await sql("""
         CREATE TABLE IF NOT EXISTS artists (
-            id INTEGER UNIQUE PRIMARY KEY AUTOINCREMENT,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
             artist_track_id TEXT UNIQUE NOT NULL
         );
         """)
 
-        # print(await sql("PRAGMA table_info(songs);", fetch_results=True))
+        await sql("""
+        CREATE TABLE IF NOT EXISTS user (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            email TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL,
+            created_at INTEGER,
+            last_login INTEGER
+        );
+        """)
+
+        await sql("""
+        CREATE TABLE IF NOT EXISTS user_song_data (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            track_id TEXT NOT NULL,
+            played_count INTEGER DEFAULT 0,
+            favorite INTEGER DEFAULT 0,
+            rating INTEGER DEFAULT 0 CHECK (rating >= 0 AND rating <= 5),
+            last_played INTEGER,
+            skip_count INTEGER DEFAULT 0,
+            added_to_playlist_count INTEGER DEFAULT 0,
+            first_played INTEGER,
+            added_to_library INTEGER DEFAULT 0,
+            FOREIGN KEY (user_id) REFERENCES user(id),
+            FOREIGN KEY (track_id) REFERENCES songs(track_id),
+            UNIQUE (user_id, track_id)
+        );
+        """)
+
+        await sql("""
+        CREATE TABLE IF NOT EXISTS user_song_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            track_id TEXT NOT NULL,
+            played_count INTEGER DEFAULT 0,
+            skipped_count INTEGER DEFAULT 0,
+            listen_time_seconds INTEGER DEFAULT 0,
+            date INTEGER NOT NULL,
+            FOREIGN KEY (user_id) REFERENCES user(id),
+            FOREIGN KEY (track_id) REFERENCES songs(track_id)
+        );
+        """)
+
+        await sql("CREATE INDEX IF NOT EXISTS idx_songs_track_id ON songs(track_id);")
+        await sql("CREATE INDEX IF NOT EXISTS idx_songs_data_track_id ON songs_data(track_id);")
+        await sql("CREATE INDEX IF NOT EXISTS idx_artists_artist_track_id ON artists(artist_track_id);")
+        await sql("CREATE INDEX IF NOT EXISTS idx_user_song_data_user_id ON user_song_data(user_id);")
+        await sql("CREATE INDEX IF NOT EXISTS idx_user_song_data_track_id ON user_song_data(track_id);")
+        await sql("CREATE INDEX IF NOT EXISTS idx_user_song_history_user_id ON user_song_history(user_id);")
+        await sql("CREATE INDEX IF NOT EXISTS idx_user_song_history_track_id ON user_song_history(track_id);")
+        await sql("CREATE INDEX IF NOT EXISTS idx_user_song_history_date ON user_song_history(date);")
         
         print("Database initialization completed successfully")
     except Exception as e:
         print(f"Error initializing database: {e}")
         raise
+
+
 # endregion
 ##D --------------------DATA BASE--------------------
 # endregion

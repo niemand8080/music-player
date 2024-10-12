@@ -20,7 +20,7 @@ const pages: PageType[] = [
   { lable: "For You", href: "/for-you" },
   { lable: "Discover", href: "/discover" },
   { lable: "Playlists", href: "/playlists" },
-  { lable: "Libary", href: "/libary" },
+  { lable: "Library", href: "/library" },
 ];
 
 export const ResponsiveHeaderLinks: React.FC = () => {
