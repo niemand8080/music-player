@@ -195,9 +195,31 @@ async def play_song():
 
 ##U --------------------USER--------------------
 # region
-@app.route('/api/register_user')
+# modify/update the information for <user_id> (POST)
+# return the information for <user_id> (GET)
+# delete user with ID <user_id> (DELETE)
+@app.route('/api/register_user', methods=['POST'])
 async def register_user():
-    print("")
+    data = request.json
+    username = data.get('username')
+    email = data.get('email')
+    password = data.get('password')
+
+    if not username or not email or not password:
+        return jsonify({"error": "Missing required fields"}), 400
+    
+    return jsonify(create_user(username, email, password))
+
+@app.route('/api/loggin_user', methods=['POST'])
+async def loggin_user():
+    data = request.json
+    username = data.get('username')
+    password = data.get('password')
+
+    if not username or not password:
+        return jsonify({"error": "Missing required fields"}), 400
+    
+    return jsonify(login(username, password))
 # endregion
 ##U --------------------USER--------------------
 # endregion
@@ -586,7 +608,7 @@ async def init_db():
 
 # js: ^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$ 
 # py: r'^[\w\.-]+@[\w\.-]+\.\w{2,4}$'
-async def create_user(username: str, email: str, password: str) -> bool:
+async def create_user(username: str, email: str, password: str):
     try:
         created_at = time.time()
         hashed_password = hash_password(password)
@@ -595,14 +617,14 @@ async def create_user(username: str, email: str, password: str) -> bool:
             (username, email, password, created_at)
             VALUES (?,?,?,?)
         """, [username, email, hashed_password, created_at])
-        return True
+        return { "success": True, "message": "Successfully created account!" }
     except Exception as e:
         print(e)
-        return False
+        return { "success": False, "message": e }
 
-async def login(username: str, password: str) -> bool:
+async def login(username: str, password: str):
     try:
-        user = await sql("SELEC * FROM user WHERE username = ?", [username])
+        user = await sql("SELEC * FROM user WHERE username = ? OR email = ?", [username, username])
         
         if not user:
             return False
@@ -610,12 +632,12 @@ async def login(username: str, password: str) -> bool:
         hashed_password = user[0]['password']
 
         if verify_password(password, hashed_password):
-            return True
+            return { "success": True, "message": "Successfully logedin!" }
         else:
-            return False
+            return { "success": False, "message": "Wrong passwort" }
     except Exception as e:
         print(e)
-        return False
+        return { "success": False, "message": e }
 # endregion
 ##D --------------------DATA BASE--------------------
 # endregion
@@ -630,7 +652,12 @@ async def main():
 if __name__ == '__main__':
     asyncio.run(main())
     try:
-        app.run(host='0.0.0.0', port=8000, debug=True)
+        app.run(
+            host='0.0.0.0',
+            port=8000,
+            debug=True,
+            ssl_context=('cert.pem', 'key.pem')
+        )
     finally:
         print("Bye...")
 # endregion
