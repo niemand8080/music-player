@@ -220,6 +220,13 @@ async def loggin_user():
         return jsonify({"error": "Missing required fields"}), 400
     
     return jsonify(login(username, password))
+
+@app.route('/api/taken', methods=['POST'])
+async def is_taken():
+    data = request.json
+    value = data.get('value')
+    exists = await sql("SELECT 1 FROM user WHERE username = ? OR email = ?", [value, value], fetch_success=True)
+    return jsonify({ "exists": exists })
 # endregion
 ##U --------------------USER--------------------
 # endregion
@@ -606,8 +613,6 @@ async def init_db():
 
 # TODO user_song_data and user_song_history implementation
 
-# js: ^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$ 
-# py: r'^[\w\.-]+@[\w\.-]+\.\w{2,4}$'
 async def create_user(username: str, email: str, password: str):
     try:
         created_at = time.time()
