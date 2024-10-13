@@ -17,6 +17,8 @@ import axios from "axios";
 import { useRouter } from "next/navigation";
 import { ButtonLoader } from "@/components/my-ui/loader";
 import { useToast } from "@/hooks/use-toast";
+import { findLogin } from "@/lib/my_utils";
+import { logOut } from "@/lib/utils";
 
 const Page: React.FC = () => {
   const router = useRouter();
@@ -25,8 +27,33 @@ const Page: React.FC = () => {
   const passwordRef = useRef<HTMLInputElement>(null);
   const usernameRef = useRef<HTMLInputElement>(null);
 
-  const [showPassword, setShowPassword] = useState<boolean>(false);
   const [isLodaing, setIsloading] = useState<boolean>(false);
+  const [alreadyLogedIn, setAlreadyLogedIn] = useState<boolean>(false);
+
+  useEffect(() => {
+    const found = async () => setAlreadyLogedIn(await findLogin());
+    found();
+
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (e.key == "Enter") handleButtonPress();
+    };
+
+    document.addEventListener("keypress", handleKeyPress);
+
+    return () => {
+      document.removeEventListener("keypress", handleKeyPress);
+    };
+  }, []);
+
+  const handleButtonPress = () => {
+    const usernameElement = usernameRef.current;
+    const passwordElement = passwordRef.current;
+    if (!usernameElement || !passwordElement) return;
+
+    if (usernameElement.value == "") usernameElement.select();
+    else if (passwordElement.value == "") passwordElement.select();
+    else login();
+  };
 
   const login = async () => {
     const usernameElement = usernameRef.current;
@@ -38,6 +65,8 @@ const Page: React.FC = () => {
     const username = usernameElement.value;
     const password = passwordElement.value;
 
+    if (alreadyLogedIn) logOut();
+
     try {
       const response = await axios.post(
         process.env.NEXT_PUBLIC_API_URL + "/login",
@@ -46,34 +75,36 @@ const Page: React.FC = () => {
           password,
         },
         {
-          withCredentials: true, // This is important for cookies
-          httpsAgent: new (
-            await import("https")
-          ).Agent({
-            rejectUnauthorized: process.env.NODE_ENV === "production",
-          }),
+          withCredentials: true,
         }
       );
-      console.log(response.data);
       if (response.data.success) {
         toast({
           title: "Successfully loged in",
           description: `Redirecting...`,
         });
-        // router.push('/');
+        router.push("/");
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Wrong login data",
+          description: `Please try again`,
+        });
+        passwordElement.focus();
+        setTimeout(() => passwordElement.select(), 200);
       }
     } catch (error) {
       if (axios.isAxiosError(error) && error.response) {
         toast({
           title: "An error occurred",
           description: error.response.data.message || "Login failed",
-          variant: "destructive"
+          variant: "destructive",
         });
       } else {
         toast({
           title: "An error occurred",
           description: "Please try again.",
-          variant: "destructive"
+          variant: "destructive",
         });
       }
     } finally {
@@ -90,56 +121,44 @@ const Page: React.FC = () => {
             Enter your username and password to login
           </CardDescription>
         </CardHeader>
-          <CardContent className="grid gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="username">Username</Label>
-              <Input
-                ref={usernameRef}
-                id="username"
-                type="username"
-                disabled={isLodaing}
-                placeholder="Username"
-              />
-            </div>
-            <div className="grid gap-2 relative">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                ref={passwordRef}
-                id="password"
-                disabled={isLodaing}
-                type={showPassword ? "text" : "password"}
-              />
-              <button
-                onClick={() => setShowPassword((v) => !v)}
-                className={`${
-                  showPassword ? "" : "opacity-0"
-                } absolute right-2 top-[30px] hover:text-zinc-50 text-zinc-400 tranistion-all`}
-              >
-                <Eye size={18} />
-              </button>
-              <button
-                onClick={() => setShowPassword((v) => !v)}
-                className={`${
-                  showPassword ? "opacity-0" : ""
-                } absolute right-2 top-[30px] hover:text-zinc-50 text-zinc-400 tranistion-all`}
-              >
-                <EyeOff size={18} />
-              </button>
-            </div>
-          </CardContent>
-          <CardFooter>
-            <div className="flex flex-col w-full gap-2">
-              <Button className="w-full" disabled={isLodaing} onClick={() => login()}>
-                <ButtonLoader loading={isLodaing}>Sign In</ButtonLoader>
+        <CardContent className="grid gap-4">
+          <div className="grid gap-2">
+            <Label htmlFor="username">Username</Label>
+            <Input
+              ref={usernameRef}
+              id="username"
+              type="username"
+              disabled={isLodaing}
+              placeholder="Username"
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="password">Password</Label>
+            <Input
+              ref={passwordRef}
+              id="password"
+              disabled={isLodaing}
+              type={"password"}
+            />
+          </div>
+        </CardContent>
+        <CardFooter>
+          <div className="flex flex-col w-full gap-2">
+            <Button
+              className="w-full"
+              disabled={isLodaing}
+              onClick={() => handleButtonPress()}
+            >
+              <ButtonLoader loading={isLodaing}>Sign In</ButtonLoader>
+            </Button>
+            <div className="flex justify-center items-center text-zinc-500">
+              Don't have an account?
+              <Button variant={"link"}>
+                <Link href={"/auth/sign-up"}>Sign Up</Link>
               </Button>
-              <div className="flex justify-center items-center text-zinc-500">
-                Don't have an account?
-                <Button variant={"link"}>
-                  <Link href={"/auth/sign-up"}>Sing Up</Link>
-                </Button>
-              </div>
             </div>
-          </CardFooter>
+          </div>
+        </CardFooter>
       </Card>
     </div>
   );

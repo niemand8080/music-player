@@ -1,5 +1,5 @@
 "use client";
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,6 +16,8 @@ import Link from "next/link";
 import axios from "axios";
 import { useRouter } from "next/navigation";
 import { toast } from "@/hooks/use-toast";
+import { findLogin } from "@/lib/my_utils";
+import { logOut } from "@/lib/utils";
 
 const Page: React.FC = () => {
   const router = useRouter();
@@ -34,6 +36,7 @@ const Page: React.FC = () => {
     "Taken" | "Special Char"
   >("Taken");
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [alreadyLogedIn, setAlreadyLogedIn] = useState<boolean>(false);
 
   const isTaken = async (value: string): Promise<boolean> => {
     try {
@@ -55,7 +58,10 @@ const Page: React.FC = () => {
   ) => {
     if (typeof window == "undefined") return;
     setIsLoading(true);
-    try {
+
+    if (alreadyLogedIn) logOut();
+
+    try {  
       const response = await axios.post(
         process.env.NEXT_PUBLIC_API_URL + "/register_user",
         {
@@ -78,6 +84,43 @@ const Page: React.FC = () => {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    const found = async () => setAlreadyLogedIn(await findLogin());
+    found();
+
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (e.key == "Enter") handleButtonPress();
+    }
+
+    document.addEventListener("keypress", handleKeyPress);
+
+    return () => {
+      document.removeEventListener("keypress", handleKeyPress);
+    }
+  }, []);
+
+  const handleButtonPress = () => {
+    const emailElement = emailRef.current;
+    const usernameElement = usernameRef.current;
+    const passwordElement = passwordRef.current;
+    if (!emailElement || !usernameElement || !passwordElement)
+      return;
+
+    if (emailElement.value.length < 5) {
+      emailElement.select();
+    } else if (usernameElement.value.length < 5) {
+      usernameElement.select();
+    } else if (passwordElement.value.length < 3) {
+      passwordElement.select();
+    } else {
+      register_user(
+        emailElement.value,
+        usernameElement.value,
+        passwordElement.value
+      );
+    }
+  }
 
   return (
     <div className="flex flex-col items-center justify-center h-screen gap-5">
@@ -187,27 +230,7 @@ const Page: React.FC = () => {
             <Button
               className="w-full"
               disabled={emailError || usernameError}
-              onClick={() => {
-                const emailElement = emailRef.current;
-                const usernameElement = usernameRef.current;
-                const passwordElement = passwordRef.current;
-                if (!emailElement || !usernameElement || !passwordElement)
-                  return;
-
-                if (emailElement.value.length < 5) {
-                  emailElement.select();
-                } else if (usernameElement.value.length < 5) {
-                  usernameElement.select();
-                } else if (passwordElement.value.length < 3) {
-                  passwordElement.select();
-                } else {
-                  register_user(
-                    emailElement.value,
-                    usernameElement.value,
-                    passwordElement.value
-                  );
-                }
-              }}
+              onClick={() => handleButtonPress()}
             >
               <ButtonLoader loading={isLoading}>Sign Up</ButtonLoader>
             </Button>
