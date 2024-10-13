@@ -312,10 +312,7 @@ async def protected():
 
     user = await sql("""
         SELECT 
-            u.id,
             u.username,
-            u.email,
-            u.verified,
             us.expiry
         FROM user_sessions us
         INNER JOIN user u ON us.user_id = u.id
@@ -354,7 +351,7 @@ async def verify_email():
         return jsonify({"success": False, "message": ["Invalid email"]})
 
     if user[0].verified == 1:
-        return jsonify({"success": True, "message": ["Email already verified", "redirecting..."]})
+        return jsonify({"success": True, "message": ["Email already verified", "Redirecting..."]})
 
     if int(time.time() * 1000) > int(user[0].code_expiry):
         return jsonify({"success": False, "message": ["Verification failed", "code expired"]})
@@ -363,7 +360,7 @@ async def verify_email():
         return jsonify({"success": False, "message": ["Wrong verification code", "try again"]})
 
     await sql("UPDATE user SET verified = 1, verify_email_code = NULL, code_expiry = NULL WHERE email = ?", [email])
-    return jsonify({"success": True, "message": ["Successfully verified", "redirecting..."]})
+    return jsonify({"success": True, "message": ["Successfully verified!", "Login to complete signing up"]})
 
 @app.route('/api/send_new_code', methods=['POST'])
 async def send_new_code():
@@ -372,6 +369,27 @@ async def send_new_code():
     send_code = await send_new_verify_code(email)
     return jsonify(send_code)
 
+@app.route('/api/user_data', methods=['POST'])
+async def user_data():
+    token = request.cookies.get('session_token')
+    if not token:
+        return jsonify({"success": False})
+    
+    user = await sql("""
+        SELECT 
+            u.username,
+            u.email,
+            u.created_at,
+            u.verified
+        FROM user_sessions us
+        INNER JOIN user u ON us.user_id = u.id
+        WHERE us.session_token = ?
+    """, [token], fetch_results=True)
+
+    if user and user[0]:
+        return jsonify({"success": True, "user": format_namedtuple(user)[0]})
+    else:
+        return jsonify({"success": False})
 
 async def send_verification_email(to_email, username, verification_code):
     # Email configuration
