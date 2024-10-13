@@ -1,9 +1,9 @@
 import os
 import re
 import time
-import random # send mail
-import string # send mail
-import smtplib # send mail
+import random 
+import string
+import secrets
 import hashlib
 import asyncio
 from typing import Optional
@@ -14,11 +14,12 @@ from email.mime.text import MIMEText # send mail
 from email.mime.multipart import MIMEMultipart # send mail
 import bcrypt # type: ignore
 import aiosqlite # type: ignore
+import aiosmtplib # type: ignore
 from mutagen import File # type: ignore
 from flask_cors import CORS # type: ignore
 from dotenv import load_dotenv # type: ignore
 from flask_executor import Executor # type: ignore
-from flask import Flask, send_file, abort, request, jsonify # type: ignore
+from flask import Flask, send_file, abort, request, jsonify, make_response # type: ignore
 
 # Load environment variables from .env file
 load_dotenv()
@@ -37,7 +38,7 @@ app = Flask(__name__)
 executor = Executor(app)
 # CORS(app)
 IP_ADDRESS = os.environ.get('IP_ADDRESS')
-CORS(app, resources={r"/api/*": { "origins": f"http://{IP_ADDRESS if IP_ADDRESS else 'localhost'}:3000" }})
+CORS(app, resources={r"/api/*": { "origins": f"http://{IP_ADDRESS if IP_ADDRESS else 'localhost'}:3000", "supports_credentials": True }})
 
 ROOT_PATH = os.environ.get("ROOT_PATH")
 ENV_DIR = f"{ROOT_PATH}{os.environ.get('ENV_DIR')}"
@@ -84,9 +85,7 @@ class Song:
 # endregion
 ##C ----------------------------CLASSES----------------------------
 
-##A ------------------------------API------------------------------
-# region
-##M --------------------MUSIC-------------------
+##M -----------------------------MUSIC-----------------------------
 # region
 @app.route('/api/ping')
 def pong():
@@ -190,228 +189,6 @@ async def play_song():
     except Exception as e:
         app.logger.error(f"Error serving {track_id}: {str(e)}")
         abort(500)
-# endregion
-##M --------------------MUSIC-------------------
-
-##U --------------------USER--------------------
-# region
-# modify/update the information for <user_id> (POST)
-# return the information for <user_id> (GET)
-# delete user with ID <user_id> (DELETE)
-@app.route('/api/register_user', methods=['POST'])
-async def register_user():
-    data = request.json
-    username = data.get('username')
-    email = data.get('email')
-    password = data.get('password')
-
-    if not username or not email or not password:
-        return jsonify({"error": "Missing required fields"}), 400
-    
-    return jsonify(create_user(username, email, password))
-
-@app.route('/api/loggin_user', methods=['POST'])
-async def loggin_user():
-    data = request.json
-    username = data.get('username')
-    password = data.get('password')
-
-    if not username or not password:
-        return jsonify({"error": "Missing required fields"}), 400
-    
-    return jsonify(login(username, password))
-
-@app.route('/api/taken', methods=['POST'])
-async def is_taken():
-    data = request.json
-    value = data.get('value')
-    exists = await sql("SELECT 1 FROM user WHERE username = ? OR email = ?", [value, value], fetch_success=True)
-    return jsonify({ "exists": exists })
-# endregion
-##U --------------------USER--------------------
-# endregion
-##A ------------------------------API------------------------------
-
-##F ---------------------------FUNCTIONS---------------------------
-# region
-def get_max_amount() -> int:
-	max_amount_str: Optional[str] = request.args.get('a')
-
-	if max_amount_str is None:
-		return -1
-
-	try:
-		max_amount = int(max_amount_str)
-		return max_amount if max_amount >= 0 else -1
-	except ValueError:
-		return -1
-
-def format_namedtuple(songs):
-    return [
-        {
-            field: getattr(song, field)
-            for field in song._fields
-        }
-        for song in songs
-    ]
-
-def get_client_browser() -> str:
-    user_agent = request.headers.get('User-Agent')
-    if 'Chrome' in user_agent and 'Safari' in user_agent:
-        return 'Chrome'
-    elif 'Safari' in user_agent:
-        return 'Safari'
-    elif 'Firefox' in user_agent:
-        return 'Firefox'
-    else:
-        return 'Unknown'
-
-async def sql(query, params=None, fetch_results=False, fetch_success=False, max_retries=5):
-    for attempt in range(max_retries):
-        try:
-            async with aiosqlite.connect(DB_FILE) as connection:
-                if fetch_results:
-                    connection.row_factory = aiosqlite.Row
-                async with connection.execute(query, params) as cursor:
-                    if fetch_results:
-                        rows = await cursor.fetchall()
-                        columns = [description[0] for description in cursor.description]
-                        Result = namedtuple('Result', columns)
-                        results = [Result(**dict(row)) for row in rows]
-                    elif fetch_success:
-                        results = await cursor.fetchall()
-                        return bool(results)
-                    else:
-                        results = None
-                        await connection.commit()
-                return results
-        except aiosqlite.OperationalError as e:
-            if "database is locked" in str(e) and attempt < max_retries - 1:
-                wait_time = (attempt + 1) * 0.5  # Increase wait time with each attempt
-                print(f"Database is locked. Retrying in {wait_time} seconds... (Attempt {attempt + 1}/{max_retries})")
-                await asyncio.sleep(wait_time)
-            else:
-                print(f"Database error after {attempt + 1} attempts: {e}")
-                print(f"Query: {query}")
-                print(f"Parameters: {params}")
-                if fetch_success:
-                    return False
-                raise
-        except Exception as e:
-            print(f"An unexpected error occurred: {e}")
-            print(f"Query: {query}")
-            print(f"Parameters: {params}")
-            if fetch_success:
-                return False
-            raise
-    
-    print(f"Failed to execute query after {max_retries} attempts")
-    return False if fetch_success else None
-
-def send_verification_email(to_email, verification_code):
-    # Email configuration
-    smtp_server = "smtp.gmail.com"
-    smtp_port = 587
-    sender_email = GMAIL
-    sender_password = GMAIL_PASSWORD
-
-    # Create message
-    message = MIMEMultipart()
-    message["From"] = sender_email
-    message["To"] = to_email
-    message["Subject"] = "Your Verification Code"
-
-    # Email body
-    body = f"Your verification code is: {verification_code}"
-    message.attach(MIMEText(body, "plain"))
-
-    # Send email
-    try:
-        with smtplib.SMTP(smtp_server, smtp_port) as server:
-            server.starttls()
-            server.login(sender_email, sender_password)
-            server.send_message(message)
-        print("Verification email sent successfully")
-    except Exception as e:
-        print(f"Error sending email: {e}")
-
-def generate_verification_code(length = 6) -> str:
-    return ''.join(random.randint(0, 9) for _ in range(length))
-
-def hash_password(password):
-    # Convert the password to bytes
-    password_bytes = password.encode('utf-8')
-    # Generate a salt and hash the password
-    salt = bcrypt.gensalt()
-    hashed_password = bcrypt.hashpw(password_bytes, salt)
-    return hashed_password
-
-def verify_password(plain_password, hashed_password):
-    # Convert the plain_password to bytes
-    password_bytes = plain_password.encode('utf-8')
-    # Check if the plain password matches the hashed password
-    return bcrypt.checkpw(password_bytes, hashed_password)
-# endregion
-##F ---------------------------FUNCTIONS---------------------------
-
-##S -----------------------------SETUP-----------------------------
-# region
-##D --------------------DATA BASE--------------------
-# region
-async def sync_songs_with_db(songs):
-    artist_list = await sql('SELECT * FROM artists', fetch_results=True)
-    artists = { artist.name: artist.artist_track_id for artist in artist_list }
-    track_ids = [artist.artist_track_id for artist in artist_list]
-    
-    async def insert_song(song):
-        if await sql("SELECT 1 FROM songs s INNER JOIN songs_data sd ON sd.track_id = s.track_id WHERE s.name = ? AND s.track_id = ?", [song["name"], song["track_id"]], fetch_success=True):
-            return False
-        
-        artist_name = song["artist_name"]
-        if artist_name and artist_name not in artists:
-            count = 0
-            artist_track_id = hashlib.sha256(str(artist_name).encode()).hexdigest()[count:count+8]
-            while artist_track_id in track_ids:
-                count += 1
-                old_id = artist_track_id
-                artist_track_id = hashlib.sha256(str(artist_name).encode()).hexdigest()[count:count+8]
-                print(f"\033[34m{artist_name}\033[0m track_id found and changed: \033[31m{old_id}\033[0m -> \033[32m{artist_track_id}\033[0m")
-
-            await sql('INSERT or IGNORE INTO artists (name, artist_track_id) VALUES (?,?)', [artist_name, artist_track_id])
-            print(f"Created new \033[34mArtist\033[0m: \033[36m{artist_name}\033[0m - \033[32m{artist_track_id}\033[0m")
-            artists[artist_name] = artist_track_id
-            track_ids.append(artist_track_id)
-        else:
-            artist_track_id = artists.get(artist_name, "00000000")
-
-        song_data = [
-            song["name"], 1, artist_track_id, artist_name, song.get("album"), song.get("genres"),
-            song["birth_date"], song["duration"], 0, time.time(), song["track_id"], None,
-            song["path"], song["yt_link"]
-        ]
-
-        try:
-            await sql("""
-                INSERT or IGNORE INTO songs
-                (name, file_exists, o_artist_name, birth_date, duration, added, rel_path, track_id, yt_link)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, [song["name"], 1, artist_name, song["birth_date"], song["duration"], time.time(), song["path"], song["track_id"], song["yt_link"]])
-            await sql("""
-                INSERT INTO songs_data
-                (name, artist_track_id, album, genres, global_played, last_played, track_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                """, [song["name"], artist_track_id, song.get("album"), song.get("genres"), 0, 0, song["track_id"]])
-            print(f"Created new \033[33mSong\033[0m: \033[35m{song_data[0]}\033[0m")
-        except Exception as e:
-            print(f"Error inserting song: {e}")
-            return False
-        return True
-
-    tasks = [insert_song(song) for song in songs]
-    results = await asyncio.gather(*tasks)
-    
-    inserted_count = sum(results)
-    print(f"Inserted \033[32m{inserted_count}\033[0m new songs out of \033[35m{len(songs)}\033[0m total songs.")
 
 async def get_song_data(root: str, file: str) -> Song:
     name, _ = os.path.splitext(file)
@@ -474,6 +251,410 @@ async def get_song_data(root: str, file: str) -> Song:
     }
 
     return song_data
+# endregion
+##M -----------------------------MUSIC-----------------------------
+
+##U -----------------------------USER------------------------------
+# region
+# TODO user_song_data and user_song_history implementation
+@app.route('/api/taken', methods=['POST'])
+async def is_taken():
+    data = request.json
+    value = data.get('value')
+    exists = await sql("SELECT 1 FROM user WHERE username = ? OR email = ?", [value, value], fetch_success=True)
+    return jsonify({ "exists": exists })
+
+@app.route('/api/register_user', methods=['POST'])
+async def register_user():
+    data = request.json
+    username = data.get('username')
+    email = data.get('email')
+    password = data.get('password')
+
+    if not username or not email or not password:
+        return jsonify({"error": "Missing required fields"}), 400
+
+    json = await create_user(username, email, password)
+
+    return jsonify(json)
+
+@app.route('/api/login', methods=['POST'])
+async def login():
+    data = request.json
+    username = data.get('username')
+    password = data.get('password')
+    
+    if not username or not password:
+        return jsonify({"success": False, "error": "Missing required fields"})
+    
+    login_result = await login_user(username, password)
+    if login_result: 
+        session_result = await create_session_for_user(username)
+        if session_result['success']:
+            response = make_response(jsonify({'success': True, 'message': 'Logged in successfully'}))
+            response.set_cookie('session_token', session_result['session_token'], 
+                                httponly=True, 
+                                secure=True,
+                                samesite='Strict', 
+                                max_age=(60 * 60 * 24 * 30))
+            return response
+        else:
+            return jsonify({'success': False, 'message': 'Failed to create session'})
+    else:
+        return jsonify({'success': False, 'message': 'Invalid credentials'})
+    
+@app.route('/api/protected', methods=['GET'])
+async def protected():
+    token = request.cookies.get('session_token')
+    
+    if not token:
+        return jsonify({'success': False, 'message': 'Unauthorized'})
+
+    user = await sql("""
+        SELECT 
+            u.id,
+            u.username,
+            u.email,
+            u.verified,
+            us.expiry
+        FROM user_sessions us
+        INNER JOIN user u ON us.user_id = u.id
+        WHERE us.session_token = ?
+    """, [token], fetch_results=True)
+    
+    if user and user[0]:
+        if int(time.time() * 1000) > user[0].expiry:
+            return jsonify({'success': False, 'message': 'Session expired'})
+        return jsonify({'success': True, 'message': f'Access granted to {user[0].username}'})
+    else:
+        return jsonify({'success': False, 'message': 'Unauthorized'})
+
+@app.route('/api/logout', methods=['POST'])
+async def logout():
+    token = request.cookies.get('session_token')
+    if token:
+        await sql("DELETE FROM user_sessions WHERE session_token = ?", [token])
+    
+    response = make_response(jsonify({'message': 'Logged out successfully'}))
+    response.delete_cookie('session_token')
+    return response
+
+@app.route('/api/verify_email', methods=['POST'])
+async def verify_email():
+    data = request.json
+    email = data.get('email')
+    code = data.get('code')
+
+    if not email or not code:
+        return jsonify({"success": False, "message": ["Missing required fields"]})
+
+    user = await sql("SELECT * FROM user WHERE email = ?", [email], fetch_results=True)
+
+    if not user or not user[0]:
+        return jsonify({"success": False, "message": ["Invalid email"]})
+
+    if user[0].verified == 1:
+        return jsonify({"success": True, "message": ["Email already verified", "redirecting..."]})
+
+    if int(time.time() * 1000) > int(user[0].code_expiry):
+        return jsonify({"success": False, "message": ["Verification failed", "code expired"]})
+
+    if str(code) != str(user[0].verify_email_code):
+        return jsonify({"success": False, "message": ["Wrong verification code", "try again"]})
+
+    await sql("UPDATE user SET verified = 1, verify_email_code = NULL, code_expiry = NULL WHERE email = ?", [email])
+    return jsonify({"success": True, "message": ["Successfully verified", "redirecting..."]})
+
+@app.route('/api/send_new_code', methods=['POST'])
+async def send_new_code():
+    data = request.json
+    email = data.get('email')
+    send_code = await send_new_verify_code(email)
+    return jsonify(send_code)
+
+
+async def send_verification_email(to_email, username, verification_code):
+    # Email configuration
+    smtp_server = "smtp.gmail.com"
+    smtp_port = 465  # Changed to 465 for SSL
+    sender_email = GMAIL
+    sender_password = GMAIL_PASSWORD
+
+    # Create message
+    message = MIMEMultipart()
+    message["From"] = sender_email
+    message["To"] = to_email
+    message["Subject"] = "Your Verification Code"
+
+    code_str = str(verification_code)
+    mid = len(code_str) // 2
+    v_code = f"{code_str[:mid]} - {code_str[mid:]}"
+
+    # Email body
+    body = f"Hello {username}, \n\nyour verification code is: {v_code}\nThis code will expire in 5 minutes."
+    message.attach(MIMEText(body, "plain"))
+
+    # Send email
+    try:
+        smtp_client = aiosmtplib.SMTP(hostname=smtp_server, port=smtp_port, use_tls=True)
+        await smtp_client.connect()
+        await smtp_client.login(sender_email, sender_password)
+        await smtp_client.send_message(message)
+        await smtp_client.quit()
+        print("Verification email sent successfully")
+        return True
+    except Exception as e:
+        print(f"Error sending email: {e}")
+        return False
+
+def generate_verification_code(length = 6) -> str:
+    return ''.join(str(random.randint(0, 9)) for _ in range(length))
+
+def hash_password(password):
+    # Convert the password to bytes
+    password_bytes = password.encode('utf-8')
+    # Generate a salt and hash the password
+    salt = bcrypt.gensalt()
+    hashed_password = bcrypt.hashpw(password_bytes, salt)
+    return hashed_password
+
+def verify_password(plain_password, hashed_password):
+    # Convert the plain_password to bytes
+    password_bytes = plain_password.encode('utf-8')
+    # Check if the plain password matches the hashed password
+    return bcrypt.checkpw(password_bytes, hashed_password)
+
+def generate_session_token(length=32):
+    """Generate a secure random session token."""
+    alphabet = string.ascii_letters + string.digits
+    return ''.join(secrets.choice(alphabet) for _ in range(length))
+
+
+async def create_session_for_user(username: str):
+    try:
+        user = await sql("SELECT * FROM user WHERE username = ?", [username], fetch_results=True)
+        if not user[0]:
+            return {"success": False, "message": "User not found", "session_token": None}
+        
+        session_token = generate_session_token()
+        expiry = ((time.time() + (60 * 60 * 24 * 30)) * 1000)
+        session = await sql("""
+            INSERT INTO user_sessions
+            (user_id, session_token, expiry)
+            VALUES (?,?,?)
+        """, [user[0].id, session_token, expiry])
+
+        if session == None:
+            return {"success": True, "message": "Successfully created session token", "session_token": session_token}
+        else: 
+            return {"success": False, "message": "Something went wrong", "session_token": None}
+    except Exception as e:
+        print(e)
+        return {"success": False, "message": str(e), "session_token": None}
+
+async def send_new_verify_code(email: str):
+    try:
+        user = await sql("SELECT * FROM user WHERE email = ?", [email], fetch_results=True)
+        if user[0].verified:
+           return {"success": False, "message": "User already verified", "verified": True}
+        
+        verify_code = generate_verification_code()
+        username = user[0].username
+        code_expiry = int((time.time() + (5 * 60)) * 1000)
+
+        send_mail = await send_verification_email(email, username, verify_code)
+
+        if send_mail:
+            updated = await sql("UPDATE user SET verify_email_code = ?, code_expiry = ? WHERE email = ?", [verify_code, code_expiry, email])
+            print(updated)
+            return {"success": True, "message": "Send new verification code", "verified": False}
+        else:
+            return {"success": False, "message": "Error sending email", "verified": False}
+    except Exception as e:
+        print(e)
+        return {"success": False, "message": str(e)}
+
+async def create_user(username: str, email: str, password: str):
+    send_mail = False
+    try:
+        created_at = int(time.time() * 1000)
+        hashed_password = hash_password(password)
+        verify_code = generate_verification_code()
+        code_expiry = int((time.time() + (5 * 60)) * 1000)
+        
+        created = await sql(""" 
+            INSERT INTO user
+            (username, email, password, created_at, verify_email_code, code_expiry)
+            VALUES (?,?,?,?,?,?)
+        """, [username, email, hashed_password, created_at, verify_code, code_expiry], fetch_success=True)
+        
+        if created == None:
+            send_mail = await send_verification_email(email, username, verify_code)
+            return {"success": True, "message": ["Successfully created account!", "Redirecting to email verification..."], "send_mail": send_mail}
+        else:
+            return {"success": False, "message": ["Failed to create user account!", "Please try again."], "send_mail": send_mail}
+    
+    except Exception as e:
+        return {"success": False, "message": ["Failed to create user account!", str(e)], "send_mail": send_mail}
+
+async def login_user(username: str, password: str) -> bool:
+    try:
+        user = await sql("SELECT * FROM user WHERE username = ? OR email = ?", [username, username], fetch_results=True)
+        
+        if not user or not user[0]:
+            return False
+        
+        hashed_password = user[0].password
+        now = int(time.time() * 1000)
+
+        if verify_password(password, hashed_password):
+            await sql("UPDATE user SET last_login = ? WHERE username = ? OR email = ?", [now, username, username])
+            return True
+        else:
+            return False
+    except Exception as e:
+        print(f"Error in login_user: {e}")
+        return False
+# endregion
+##U -----------------------------USER------------------------------
+
+##G -----------------------------GLOBAL----------------------------
+# region
+def get_max_amount() -> int:
+	max_amount_str: Optional[str] = request.args.get('a')
+
+	if max_amount_str is None:
+		return -1
+
+	try:
+		max_amount = int(max_amount_str)
+		return max_amount if max_amount >= 0 else -1
+	except ValueError:
+		return -1
+
+def format_namedtuple(songs):
+    return [
+        {
+            field: getattr(song, field)
+            for field in song._fields
+        }
+        for song in songs
+    ]
+
+def get_client_browser() -> str:
+    user_agent = request.headers.get('User-Agent')
+    if 'Chrome' in user_agent and 'Safari' in user_agent:
+        return 'Chrome'
+    elif 'Safari' in user_agent:
+        return 'Safari'
+    elif 'Firefox' in user_agent:
+        return 'Firefox'
+    else:
+        return 'Unknown'
+
+async def sql(query: str, params=None, fetch_results=False, fetch_success=False, max_retries=5):
+    for attempt in range(max_retries):
+        try:
+            async with aiosqlite.connect(DB_FILE) as connection:
+                if fetch_results:
+                    connection.row_factory = aiosqlite.Row
+                async with connection.execute(query, params) as cursor:
+                    if fetch_results:
+                        rows = await cursor.fetchall()
+                        columns = [description[0] for description in cursor.description]
+                        Result = namedtuple('Result', columns)
+                        results = [Result(**dict(row)) for row in rows]
+                    elif fetch_success:
+                        results = await cursor.fetchall()
+                        if query.strip().upper().startswith(("INSERT", "UPDATE", "DELETE")):
+                            return await connection.commit()
+                        else:
+                            return bool(results)
+                    else:
+                        results = None
+                        await connection.commit()
+                return results
+        except aiosqlite.OperationalError as e:
+            if "database is locked" in str(e) and attempt < max_retries - 1:
+                wait_time = (attempt + 1) * 0.5  # Increase wait time with each attempt
+                print(f"Database is locked. Retrying in {wait_time} seconds... (Attempt {attempt + 1}/{max_retries})")
+                await asyncio.sleep(wait_time)
+            else:
+                print(f"Database error after {attempt + 1} attempts: {e}")
+                print(f"Query: {query}")
+                print(f"Parameters: {params}")
+                if fetch_success:
+                    return False
+                raise
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+            print(f"Query: {query}")
+            print(f"Parameters: {params}")
+            if fetch_success:
+                return False
+            raise
+    
+    print(f"Failed to execute query after {max_retries} attempts")
+    return False if fetch_success else None
+# endregion
+##G -----------------------------GLOBAL----------------------------
+
+##S -----------------------------SETUP-----------------------------
+# region
+async def sync_songs_with_db(songs):
+    artist_list = await sql('SELECT * FROM artists', fetch_results=True)
+    artists = { artist.name: artist.artist_track_id for artist in artist_list }
+    track_ids = [artist.artist_track_id for artist in artist_list]
+    
+    async def insert_song(song):
+        if await sql("SELECT 1 FROM songs s INNER JOIN songs_data sd ON sd.track_id = s.track_id WHERE s.name = ? AND s.track_id = ?", [song["name"], song["track_id"]], fetch_success=True):
+            return False
+        
+        artist_name = song["artist_name"]
+        if artist_name and artist_name not in artists:
+            count = 0
+            artist_track_id = hashlib.sha256(str(artist_name).encode()).hexdigest()[count:count+8]
+            while artist_track_id in track_ids:
+                count += 1
+                old_id = artist_track_id
+                artist_track_id = hashlib.sha256(str(artist_name).encode()).hexdigest()[count:count+8]
+                print(f"\033[34m{artist_name}\033[0m track_id found and changed: \033[31m{old_id}\033[0m -> \033[32m{artist_track_id}\033[0m")
+
+            await sql('INSERT or IGNORE INTO artists (name, artist_track_id) VALUES (?,?)', [artist_name, artist_track_id])
+            print(f"Created new \033[34mArtist\033[0m: \033[36m{artist_name}\033[0m - \033[32m{artist_track_id}\033[0m")
+            artists[artist_name] = artist_track_id
+            track_ids.append(artist_track_id)
+        else:
+            artist_track_id = artists.get(artist_name, "00000000")
+
+        song_data = [
+            song["name"], 1, artist_track_id, artist_name, song.get("album"), song.get("genres"),
+            song["birth_date"], song["duration"], 0, time.time(), song["track_id"], None,
+            song["path"], song["yt_link"]
+        ]
+
+        try:
+            await sql("""
+                INSERT or IGNORE INTO songs
+                (name, file_exists, o_artist_name, birth_date, duration, added, rel_path, track_id, yt_link)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, [song["name"], 1, artist_name, song["birth_date"], song["duration"], time.time(), song["path"], song["track_id"], song["yt_link"]])
+            await sql("""
+                INSERT INTO songs_data
+                (name, artist_track_id, album, genres, global_played, last_played, track_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, [song["name"], artist_track_id, song.get("album"), song.get("genres"), 0, 0, song["track_id"]])
+            print(f"Created new \033[33mSong\033[0m: \033[35m{song_data[0]}\033[0m")
+        except Exception as e:
+            print(f"Error inserting song: {e}")
+            return False
+        return True
+
+    tasks = [insert_song(song) for song in songs]
+    results = await asyncio.gather(*tasks)
+    
+    inserted_count = sum(results)
+    print(f"Inserted \033[32m{inserted_count}\033[0m new songs out of \033[35m{len(songs)}\033[0m total songs.")
 
 async def sync_all_songs_with_db():
     print("Start syncing DB with files")
@@ -553,17 +734,33 @@ async def init_db():
         );
         """)
 
+        # Create user table
         await sql("""
         CREATE TABLE IF NOT EXISTS user (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
             email TEXT UNIQUE NOT NULL,
             password TEXT NOT NULL,
-            created_at INTEGER,
-            last_login INTEGER
+            created_at INTEGER, -- in ms
+            last_login INTEGER,
+            verified INTEGER DEFAULT 0,
+            verify_email_code TEXT,
+            code_expiry INTEGER
         );
         """)
 
+        # sessions for users
+        await sql("""
+        CREATE TABLE IF NOT EXISTS user_sessions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            session_token TEXT NOT NULL,
+            expiry INTEGER NOT NULL,
+            FOREIGN KEY (user_id) REFERENCES user(id) 
+        );
+        """)
+
+        # Create user_song_data table
         await sql("""
         CREATE TABLE IF NOT EXISTS user_song_data (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -583,6 +780,7 @@ async def init_db():
         );
         """)
 
+        # Create user_song_history table
         await sql("""
         CREATE TABLE IF NOT EXISTS user_song_history (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -600,6 +798,8 @@ async def init_db():
         await sql("CREATE INDEX IF NOT EXISTS idx_songs_track_id ON songs(track_id);")
         await sql("CREATE INDEX IF NOT EXISTS idx_songs_data_track_id ON songs_data(track_id);")
         await sql("CREATE INDEX IF NOT EXISTS idx_artists_artist_track_id ON artists(artist_track_id);")
+        await sql("CREATE INDEX IF NOT EXISTS idx_user_sessions_user_id ON user_sessions(user_id);")
+        await sql("CREATE INDEX IF NOT EXISTS idx_user_sessions_session_token ON user_sessions(session_token);")
         await sql("CREATE INDEX IF NOT EXISTS idx_user_song_data_user_id ON user_song_data(user_id);")
         await sql("CREATE INDEX IF NOT EXISTS idx_user_song_data_track_id ON user_song_data(track_id);")
         await sql("CREATE INDEX IF NOT EXISTS idx_user_song_history_user_id ON user_song_history(user_id);")
@@ -610,41 +810,6 @@ async def init_db():
     except Exception as e:
         print(f"Error initializing database: {e}")
         raise
-
-# TODO user_song_data and user_song_history implementation
-
-async def create_user(username: str, email: str, password: str):
-    try:
-        created_at = time.time()
-        hashed_password = hash_password(password)
-        await sql("""
-            INSERT INTO user
-            (username, email, password, created_at)
-            VALUES (?,?,?,?)
-        """, [username, email, hashed_password, created_at])
-        return { "success": True, "message": "Successfully created account!" }
-    except Exception as e:
-        print(e)
-        return { "success": False, "message": e }
-
-async def login(username: str, password: str):
-    try:
-        user = await sql("SELEC * FROM user WHERE username = ? OR email = ?", [username, username])
-        
-        if not user:
-            return False
-        
-        hashed_password = user[0]['password']
-
-        if verify_password(password, hashed_password):
-            return { "success": True, "message": "Successfully logedin!" }
-        else:
-            return { "success": False, "message": "Wrong passwort" }
-    except Exception as e:
-        print(e)
-        return { "success": False, "message": e }
-# endregion
-##D --------------------DATA BASE--------------------
 # endregion
 ##S -----------------------------SETUP-----------------------------
 

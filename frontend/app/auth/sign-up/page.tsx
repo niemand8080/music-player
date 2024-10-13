@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,14 +11,19 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Eye, EyeOff } from "lucide-react";
+import { ButtonLoader } from "@/components/my-ui/loader";
 import Link from "next/link";
 import axios from "axios";
+import { useRouter } from "next/navigation";
+import { toast } from "@/hooks/use-toast";
 
 const Page: React.FC = () => {
+  const router = useRouter();
+
   const emailRef = useRef<HTMLInputElement>(null);
   const usernameRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
+  
   const [emailError, setEmailError] = useState<boolean>(false);
   const [usernameError, setUsernameError] = useState<boolean>(false);
   const [passwordError, setPasswordError] = useState<boolean>(false);
@@ -28,9 +33,9 @@ const Page: React.FC = () => {
   const [usernameErrorMessage, setUsernameErrorMessage] = useState<
     "Taken" | "Special Char"
   >("Taken");
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const isTaken = async (value: string): Promise<boolean> => {
-    console.log(value);
     try {
       const response = await axios.post(
         process.env.NEXT_PUBLIC_API_URL + "/taken",
@@ -38,8 +43,39 @@ const Page: React.FC = () => {
       );
       return response.data.exists;
     } catch (error) {
-      console.log("Error: ", error);
+      console.error("Error: ", error);
       return false;
+    }
+  };
+
+  const register_user = async (
+    email: string,
+    username: string,
+    password: string
+  ) => {
+    if (typeof window == "undefined") return;
+    setIsLoading(true);
+    try {
+      const response = await axios.post(
+        process.env.NEXT_PUBLIC_API_URL + "/register_user",
+        {
+          email: email,
+          username: username,
+          password: password,
+        }
+      );
+      toast({
+        title: response.data.message[0],
+        description: response.data.message[1],
+      })
+      if (response.data.success) {
+        window.localStorage.setItem("email", email);
+        router.push('/auth/verify_email');
+      }
+    } catch (error) {
+      console.error("Error: ", error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -59,6 +95,7 @@ const Page: React.FC = () => {
               ref={emailRef}
               id="email"
               type="email"
+              disabled={isLoading}
               placeholder="m@example.com"
               error={emailError}
               onChange={async () => {
@@ -71,18 +108,20 @@ const Page: React.FC = () => {
 
                 setEmailErrorMessage("Not Vailid");
                 setEmailError(vailid);
-
-                const taken = await isTaken(value);
-                const msg = taken ? "Taken" : "Not Vailid";
-
-                setEmailErrorMessage(msg);
-                setEmailError(vailid || taken);
+                
+                if (!vailid) {
+                  const taken = await isTaken(value);
+                  const msg = taken ? "Taken" : "Not Vailid";
+  
+                  setEmailErrorMessage(msg);
+                  setEmailError(vailid || taken);
+                }
               }}
             />
             <div
               className={`${
                 emailError ? "" : "opacity-0"
-              } absolute right-2 top-8 text-xs text-error tranistion-all font-bold`}
+              } absolute right-2 top-8 text-xs text-error tranistion-all font-bold pointer-events-none`}
             >
               {emailErrorMessage}
             </div>
@@ -93,6 +132,7 @@ const Page: React.FC = () => {
               ref={usernameRef}
               id="username"
               type="username"
+              disabled={isLoading}
               placeholder="Username"
               error={usernameError}
               onChange={async () => {
@@ -112,21 +152,31 @@ const Page: React.FC = () => {
             <div
               className={`${
                 usernameError ? "" : "opacity-0"
-              } absolute right-2 top-8 text-xs text-error tranistion-all font-bold`}
+              } absolute right-2 top-8 text-xs text-error tranistion-all font-bold pointer-events-none`}
             >
               {usernameErrorMessage}
             </div>
           </div>
           <div className="grid gap-2 relative">
             <Label htmlFor="password">Password</Label>
-            <Input id="password" ref={passwordRef} type="password" />
+            <Input
+              id="password"
+              ref={passwordRef}
+              disabled={isLoading}
+              type="password"
+              onChange={() => {
+                const length = (passwordRef.current?.value || "").length;
+                if (length < 3 && length > 0) {
+                  setPasswordError(true);
+                } else {
+                  setPasswordError(false);
+                }
+              }}
+            />
             <div
               className={`${
                 passwordError ? "" : "opacity-0"
-              } absolute right-2 top-8 text-xs text-error tranistion-all font-bold`}
-              onChange={() => {
-                setPasswordError(true) // Password...
-              }}  
+              } absolute right-2 top-8 text-xs text-error tranistion-all font-bold pointer-events-none`}
             >
               To Short
             </div>
@@ -136,15 +186,30 @@ const Page: React.FC = () => {
           <div className="flex flex-col w-full gap-2">
             <Button
               className="w-full"
-              disabled={
-                emailError ||
-                usernameError ||
-                (emailRef.current?.value || "").length < 5 ||
-                (usernameRef.current?.value || "").length < 5 || 
-                (passwordRef.current?.value || "").length < 8
-              }
+              disabled={emailError || usernameError}
+              onClick={() => {
+                const emailElement = emailRef.current;
+                const usernameElement = usernameRef.current;
+                const passwordElement = passwordRef.current;
+                if (!emailElement || !usernameElement || !passwordElement)
+                  return;
+
+                if (emailElement.value.length < 5) {
+                  emailElement.select();
+                } else if (usernameElement.value.length < 5) {
+                  usernameElement.select();
+                } else if (passwordElement.value.length < 3) {
+                  passwordElement.select();
+                } else {
+                  register_user(
+                    emailElement.value,
+                    usernameElement.value,
+                    passwordElement.value
+                  );
+                }
+              }}
             >
-              Sign Up
+              <ButtonLoader loading={isLoading}>Sign Up</ButtonLoader>
             </Button>
             <div className="flex justify-center items-center text-zinc-500">
               Already have an account?
