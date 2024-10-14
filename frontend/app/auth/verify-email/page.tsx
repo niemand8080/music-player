@@ -111,7 +111,7 @@ const page = () => {
 
   return (
     <div className="flex flex-col items-center justify-center h-screen gap-5">
-      <Card className="w-[350px]">
+      <Card className="w-full sm:w-[350px] border-0 sm:border">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl">Verify Your Email</CardTitle>
           <CardDescription>Enter your email verification code.</CardDescription>

@@ -76,7 +76,7 @@ const Page: React.FC = () => {
       })
       if (response.data.success) {
         window.localStorage.setItem("email", email);
-        router.push('/auth/verify_email');
+        router.push('/auth/verify-email');
       }
     } catch (error) {
       console.error("Error: ", error);
@@ -124,7 +124,7 @@ const Page: React.FC = () => {
 
   return (
     <div className="flex flex-col items-center justify-center h-screen gap-5">
-      <Card className="w-[350px]">
+      <Card className="w-full sm:w-[350px] border-0 sm:border">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl">Sign Up</CardTitle>
           <CardDescription>
