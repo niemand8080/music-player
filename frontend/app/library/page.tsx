@@ -1,7 +1,7 @@
-"use client"
-import React from "react"
-import { useAudio } from "@/components/provider/AudioProvider"
-import { Button } from "@/components/ui/button"
+"use client";
+import React from "react";
+import { useAudio } from "@/components/provider/audio-provider";
+import { Button } from "@/components/ui/button";
 
 const Page = () => {
   const { isPlaying, setIsPlaying } = useAudio();

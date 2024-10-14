@@ -59,8 +59,9 @@ const Page: React.FC = () => {
     if (typeof window == "undefined") return;
     setIsLoading(true);
 
+    
     if (alreadyLogedIn) logOut();
-
+    
     try {  
       const response = await axios.post(
         process.env.NEXT_PUBLIC_API_URL + "/register_user",
@@ -70,6 +71,7 @@ const Page: React.FC = () => {
           password: password,
         }
       );
+      alert("adw")
       toast({
         title: response.data.message[0],
         description: response.data.message[1],
@@ -107,6 +109,7 @@ const Page: React.FC = () => {
     if (!emailElement || !usernameElement || !passwordElement)
       return;
 
+    
     if (emailElement.value.length < 5) {
       emailElement.select();
     } else if (usernameElement.value.length < 5) {
@@ -124,7 +127,7 @@ const Page: React.FC = () => {
 
   return (
     <div className="flex flex-col items-center justify-center h-screen gap-5">
-      <Card className="w-full sm:w-[350px] border-0 sm:border">
+      <Card className="w-full sm:w-[350px] border-0 shadow-none sm:shadow-sm sm:border">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl">Sign Up</CardTitle>
           <CardDescription>
@@ -207,6 +210,7 @@ const Page: React.FC = () => {
               ref={passwordRef}
               disabled={isLoading}
               type="password"
+              placeholder="·····"
               onChange={() => {
                 const length = (passwordRef.current?.value || "").length;
                 if (length < 3 && length > 0) {

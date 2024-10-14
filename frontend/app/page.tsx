@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect } from "react";
 import axios from "axios";
-import { useAudio } from "@/components/provider/AudioProvider";
+import { useAudio } from "@/components/provider/audio-provider";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
@@ -21,7 +21,6 @@ const Home = () => {
             withCredentials: true,
           }
         );
-        console.log(response.data);
         if (response.data.success) {
           const user = response.data.user;
           const created = new Date(user.created_at);

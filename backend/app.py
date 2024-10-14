@@ -38,7 +38,7 @@ app = Flask(__name__)
 executor = Executor(app)
 # CORS(app)
 IP_ADDRESS = os.environ.get('IP_ADDRESS')
-CORS(app, resources={r"/api/*": { "origins": f"http://{IP_ADDRESS if IP_ADDRESS else 'localhost'}:3000", "supports_credentials": True }})
+CORS(app, resources={r"/api/*": { "origins": f"https://{IP_ADDRESS if IP_ADDRESS else 'localhost'}:3000", "supports_credentials": True }})
 
 ROOT_PATH = os.environ.get("ROOT_PATH")
 ENV_DIR = f"{ROOT_PATH}{os.environ.get('ENV_DIR')}"
@@ -310,14 +310,7 @@ async def protected():
     if not token:
         return jsonify({'success': False, 'message': 'Unauthorized'})
 
-    user = await sql("""
-        SELECT 
-            u.username,
-            us.expiry
-        FROM user_sessions us
-        INNER JOIN user u ON us.user_id = u.id
-        WHERE us.session_token = ?
-    """, [token], fetch_results=True)
+    user = await get_user(token)
     
     if user and user[0]:
         if int(time.time() * 1000) > user[0].expiry:
@@ -375,16 +368,7 @@ async def user_data():
     if not token:
         return jsonify({"success": False})
     
-    user = await sql("""
-        SELECT 
-            u.username,
-            u.email,
-            u.created_at,
-            u.verified
-        FROM user_sessions us
-        INNER JOIN user u ON us.user_id = u.id
-        WHERE us.session_token = ?
-    """, [token], fetch_results=True)
+    user = await get_user(token)
 
     if user and user[0]:
         return jsonify({"success": True, "user": format_namedtuple(user)[0]})
@@ -450,8 +434,8 @@ def generate_session_token(length=32):
 
 async def create_session_for_user(username: str):
     try:
-        user = await sql("SELECT * FROM user WHERE username = ?", [username], fetch_results=True)
-        if not user[0]:
+        user = await sql("SELECT * FROM user WHERE username = ? OR email = ?", [username, username], fetch_results=True)
+        if user and not user[0]:
             return {"success": False, "message": "User not found", "session_token": None}
         
         session_token = generate_session_token()
@@ -467,7 +451,7 @@ async def create_session_for_user(username: str):
         else: 
             return {"success": False, "message": "Something went wrong", "session_token": None}
     except Exception as e:
-        print(e)
+        print(f"Error (create session): {e}")
         return {"success": False, "message": str(e), "session_token": None}
 
 async def send_new_verify_code(email: str):
@@ -518,7 +502,6 @@ async def create_user(username: str, email: str, password: str):
 async def login_user(username: str, password: str) -> bool:
     try:
         user = await sql("SELECT * FROM user WHERE username = ? OR email = ?", [username, username], fetch_results=True)
-        
         if not user or not user[0]:
             return False
         
@@ -533,6 +516,19 @@ async def login_user(username: str, password: str) -> bool:
     except Exception as e:
         print(f"Error in login_user: {e}")
         return False
+
+async def get_user(token: str):
+    return await sql("""
+        SELECT 
+            u.username,
+            u.email,
+            u.created_at,
+            u.verified,
+            u.img_url
+        FROM user_sessions us
+        INNER JOIN user u ON us.user_id = u.id
+        WHERE us.session_token = ?
+    """, [token], fetch_results=True)
 # endregion
 ##U -----------------------------USER------------------------------
 
@@ -761,6 +757,7 @@ async def init_db():
             password TEXT NOT NULL,
             created_at INTEGER, -- in ms
             last_login INTEGER,
+            img_url TEXT,
             verified INTEGER DEFAULT 0,
             verify_email_code TEXT,
             code_expiry INTEGER
@@ -841,7 +838,7 @@ if __name__ == '__main__':
     asyncio.run(main())
     try:
         app.run(
-            host='0.0.0.0',
+            host='192.168.7.146',
             port=8000,
             debug=True,
             ssl_context=('cert.pem', 'key.pem')
