@@ -1,7 +1,7 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { getAvatarFallback, getUser, UserType } from "@/lib/utils";
+import { useUser } from "@/components/provider/user-provider";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,16 +12,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { LogOut, Settings } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { logOut } from "@/lib/utils";
+import { logOut } from "../provider/user-provider";
 
 export const UserAvatar = () => {
   const router = useRouter();
-  const [user, setUser] = useState<UserType>();
-
-  useEffect(() => {
-    const setData = async () => setUser(await getUser());
-    setData();
-  }, []);
+  const { user } = useUser();
 
   return (
     <>
@@ -30,7 +25,7 @@ export const UserAvatar = () => {
           <Avatar>
             <AvatarImage src="https://github.com/shadcn.pngaw" />
             <AvatarFallback>
-              {getAvatarFallback(user?.username || "")}
+              {user?.fallback}
             </AvatarFallback>
           </Avatar>
         </DropdownMenuTrigger>
@@ -42,7 +37,7 @@ export const UserAvatar = () => {
             Settings
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => logOut()} destructive className="gap-2">
+          <DropdownMenuItem onClick={logOut} destructive className="gap-2">
             <LogOut size={16} />
             Logout
           </DropdownMenuItem>

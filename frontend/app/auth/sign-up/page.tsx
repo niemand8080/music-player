@@ -17,7 +17,7 @@ import axios from "axios";
 import { useRouter } from "next/navigation";
 import { toast } from "@/hooks/use-toast";
 import { findLogin } from "@/lib/my_utils";
-import { logOut } from "@/lib/utils";
+import { logOut } from "@/components/provider/user-provider";
 
 const Page: React.FC = () => {
   const router = useRouter();

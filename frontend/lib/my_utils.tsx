@@ -1,7 +1,7 @@
+import { logOut } from "@/components/provider/user-provider";
 import { ToastAction } from "@/components/ui/toast";
 import { toast } from "@/hooks/use-toast";
 import axios from "axios";
-import { logOut } from "./utils";
 
 export const findLogin = async () => {
   try {

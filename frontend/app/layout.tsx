@@ -3,6 +3,7 @@ import localFont from "next/font/local";
 import "./globals.css";
 import { ThemeProvider } from "@/components/provider/theme-provider";
 import { AudioProvider } from "@/components/provider/audio-provider";
+import { UserProvider } from "@/components/provider/user-provider";
 import Header from "./Header";
 import { Toaster } from "@/components/ui/toaster";
 
@@ -44,9 +45,11 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <Header />
-          <AudioProvider>{children}</AudioProvider>
-          <Toaster />
+          <UserProvider>
+            <Header />
+            <AudioProvider>{children}</AudioProvider>
+            <Toaster />
+          </UserProvider>
         </ThemeProvider>
       </body>
     </html>
