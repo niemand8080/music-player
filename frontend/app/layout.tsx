@@ -6,6 +6,7 @@ import { AudioProvider } from "@/components/provider/audio-provider";
 import { UserProvider } from "@/components/provider/user-provider";
 import Header from "./Header";
 import { Toaster } from "@/components/ui/toaster";
+import { PageProtector } from "./PageProtector";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -48,6 +49,7 @@ export default function RootLayout({
           <UserProvider>
             <Header />
             <AudioProvider>{children}</AudioProvider>
+            <PageProtector />
           </UserProvider>
           <Toaster />
         </ThemeProvider>

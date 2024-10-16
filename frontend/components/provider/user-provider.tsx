@@ -27,12 +27,6 @@ const banedWelcomePages = [
   "/auth/verify-email",
 ];
 
-type ProtectedPageType = { href: string, label: string, redirect?: { label: string, href: string } }
-
-const protectedPages: ProtectedPageType[] = [
-  { href: "/for-you", label: "For You" }
-];
-
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
@@ -64,7 +58,15 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
           };
           setUser(newUser);
         }
-        setSentWelcome(false);
+        if (typeof window == "undefined") return;
+        const lastWelcome = Number(
+          window.localStorage.getItem("sentWelcome") || 0
+        );
+        const last = Math.floor(
+          new Date(lastWelcome).getTime() / (1000 * 60 * 60 * 24)
+        );
+        const today = Math.floor(new Date().getTime() / (1000 * 60 * 60 * 24));
+        if (last < today) setSentWelcome(false);
       } catch (error) {
         console.log("Error: " + error);
         return undefined;
@@ -76,6 +78,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     if (sentWelcome) return;
     setSentWelcome(true);
+    window.localStorage.setItem("sentWelcome", `${new Date().getTime()}`);
     if (user) {
       const created = new Date(user.created_at);
       const since = created.toDateString();
@@ -100,7 +103,8 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
                 You are our{" "}
                 <span className="font-bold text-primary">
                   {user.signup_number}th
-                </span>{" "}user.
+                </span>{" "}
+                user.
               </>
             ) : (
               <>
@@ -127,12 +131,6 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
       });
     }
   }, [pathname, router, sentWelcome, user]);
-
-  useEffect(() => {
-    const page = protectedPages.filter(({ href }) => pathname == href);
-    if (!page) return;
-    
-  }, [pathname, router, user]);
 
   return (
     <UserContext.Provider
