@@ -11,7 +11,7 @@ import React, {
 interface AudioContextType {
   audioRef: React.RefObject<HTMLAudioElement>;
   isPlaying: boolean;
-  setIsPlaying: (b: boolean) => void;
+  togglePlayPause: () => void;
 }
 
 const AudioContext = createContext<AudioContextType | undefined>(undefined);
@@ -49,12 +49,14 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
     else audio.pause();
   }, [isPlaying, pathname]);
 
+  const togglePlayPause = () => setIsPlaying((prev) => !prev)
+
   return (
     <AudioContext.Provider
       value={{
         audioRef,
         isPlaying,
-        setIsPlaying,
+        togglePlayPause,
       }}
     >
       {children}

@@ -4,11 +4,11 @@ import { useAudio } from "@/components/provider/audio-provider";
 import { Button } from "@/components/ui/button";
 
 const Page = () => {
-  const { isPlaying, setIsPlaying } = useAudio();
+  const { isPlaying, togglePlayPause } = useAudio();
   return (
     <div className="flex h-screen items-center justify-center gap-5">
       Discover
-      <Button onClick={() => setIsPlaying(!isPlaying)}>
+      <Button onClick={togglePlayPause}>
         {isPlaying ? "True" : "False"}
       </Button>
     </div>
