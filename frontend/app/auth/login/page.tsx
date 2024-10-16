@@ -11,7 +11,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 import axios from "axios";
 import { useRouter } from "next/navigation";
@@ -43,6 +42,7 @@ const Page: React.FC = () => {
     return () => {
       document.removeEventListener("keypress", handleKeyPress);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleButtonPress = () => {
@@ -153,7 +153,7 @@ const Page: React.FC = () => {
               <ButtonLoader loading={isLodaing}>Sign In</ButtonLoader>
             </Button>
             <div className="flex justify-center items-center text-zinc-500">
-              Don't have an account?
+              Don&apos;t have an account?
               <Button variant={"link"}>
                 <Link href={"/auth/sign-up"}>Sign Up</Link>
               </Button>

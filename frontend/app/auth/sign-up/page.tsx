@@ -71,7 +71,6 @@ const Page: React.FC = () => {
           password: password,
         }
       );
-      alert("adw")
       toast({
         title: response.data.message[0],
         description: response.data.message[1],
@@ -100,6 +99,7 @@ const Page: React.FC = () => {
     return () => {
       document.removeEventListener("keypress", handleKeyPress);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleButtonPress = () => {

@@ -11,33 +11,47 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { LogOut, Settings } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { logOut } from "../provider/user-provider";
+import Link from "next/link";
+import { Button } from "../ui/button";
+import { DorpdownModeSelector } from "../ui/mode-toggle";
 
 export const UserAvatar = () => {
-  const router = useRouter();
   const { user } = useUser();
+
+  if (!user)
+    return (
+      <div className="flex gap-2">
+        <Button variant={"outline"}>
+          <Link href={"/auth/login"}>Login</Link>
+        </Button>
+        <Button variant={"outline"} className="md:block hidden">
+          <Link href={"/auth/sign-up"}>Sign Up</Link>
+        </Button>
+      </div>
+    );
 
   return (
     <>
       <DropdownMenu>
         <DropdownMenuTrigger>
           <Avatar>
-            <AvatarImage src="https://github.com/shadcn.pngaw" />
-            <AvatarFallback>
-              {user?.fallback}
-            </AvatarFallback>
+            <AvatarImage src="" />
+            <AvatarFallback>{user?.fallback}</AvatarFallback>
           </Avatar>
         </DropdownMenuTrigger>
-        <DropdownMenuContent>
+        <DropdownMenuContent className="mr-2">
           <DropdownMenuLabel>My Account</DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => router.push("/settings")} className="gap-2">
-            <Settings size={16} />
-            Settings
+          <DropdownMenuItem>
+            <Link href={"/settings"} className="flex gap-2 items-center">
+              <Settings size={16} />
+              Settings
+            </Link>
           </DropdownMenuItem>
+          <DorpdownModeSelector />
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={logOut} destructive className="gap-2">
+          <DropdownMenuItem onClick={logOut} destructive className="gap-2 flex">
             <LogOut size={16} />
             Logout
           </DropdownMenuItem>

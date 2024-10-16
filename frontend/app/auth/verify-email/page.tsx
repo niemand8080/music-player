@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/rules-of-hooks */
 "use client";
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -19,7 +20,7 @@ import { useToast } from "@/hooks/use-toast";
 import axios from "axios";
 import { useRouter } from "next/navigation";
 
-const page = () => {
+const page: React.FC = () => {
   const router = useRouter();
   const { toast } = useToast();
 
@@ -33,21 +34,14 @@ const page = () => {
     if (typeof window == "undefined" || !inputRef.current) return;
     const email = window.localStorage.getItem("email");
     setEmail(email || "");
-    if (!email) {
-      toast({
-        title: "You are already verified",
-        description: `Redirecting...`,
-      });
-      window.localStorage.removeItem("email");
-      // router.push("/auth/login");
-    }
 
     document.addEventListener("keydown", () => inputRef.current?.focus());
 
     return () => {
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       document.removeEventListener("keydown", () => inputRef.current?.focus());
     }
-  }, []);
+  }, [toast]);
 
   const verify = async (code: string) => {
     setIsLoading(true);

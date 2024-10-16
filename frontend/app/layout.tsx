@@ -48,8 +48,8 @@ export default function RootLayout({
           <UserProvider>
             <Header />
             <AudioProvider>{children}</AudioProvider>
-            <Toaster />
           </UserProvider>
+          <Toaster />
         </ThemeProvider>
       </body>
     </html>

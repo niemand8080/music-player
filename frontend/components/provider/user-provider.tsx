@@ -2,6 +2,8 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { toast } from "@/hooks/use-toast";
 import axios from "axios";
+import { ToastAction } from "../ui/toast";
+import { usePathname, useRouter } from "next/navigation";
 
 export type UserType = {
   created_at: number;
@@ -10,6 +12,7 @@ export type UserType = {
   verified: boolean;
   img_url: string;
   fallback: string;
+  signup_number: number;
 };
 
 interface UserContextType {
@@ -17,12 +20,28 @@ interface UserContextType {
   logOut: () => void;
 }
 
+const banedWelcomePages = [
+  "/auth",
+  "/auth/login",
+  "/auth/sign-up",
+  "/auth/verify-email",
+];
+
+type ProtectedPageType = { href: string, label: string, redirect?: { label: string, href: string } }
+
+const protectedPages: ProtectedPageType[] = [
+  { href: "/for-you", label: "For You" }
+];
+
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
+  const router = useRouter();
+  const pathname = usePathname();
   const [user, setUser] = useState<UserType>();
+  const [sentWelcome, setSentWelcome] = useState<boolean>(true);
 
   useEffect(() => {
     const getUser = async () => {
@@ -33,15 +52,19 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
           { withCredentials: true }
         );
         const user = response.data.user;
-        const newUser = {
-          created_at: user.created_at,
-          email: user.email,
-          username: user.username,
-          verified: !!user.verified,
-          img_url: user.img_url,
-          fallback: getAvatarFallback(user.username),
-        };
-        setUser(newUser);
+        if (user) {
+          const newUser = {
+            created_at: user.created_at,
+            email: user.email,
+            username: user.username,
+            verified: !!user.verified,
+            img_url: user.img_url,
+            fallback: getAvatarFallback(user.username),
+            signup_number: user.signup_number,
+          };
+          setUser(newUser);
+        }
+        setSentWelcome(false);
       } catch (error) {
         console.log("Error: " + error);
         return undefined;
@@ -49,6 +72,67 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
     };
     getUser();
   }, []);
+
+  useEffect(() => {
+    if (sentWelcome) return;
+    setSentWelcome(true);
+    if (user) {
+      const created = new Date(user.created_at);
+      const since = created.toDateString();
+      const ago = new Date().getTime() - created.getTime();
+      toast({
+        title: (
+          <span>
+            {ago > 172800000 ? (
+              "Welcome back!"
+            ) : (
+              <>
+                Hello,{" "}
+                <span className="font-bold text-primary">{user.username}</span>!
+              </>
+            )}
+          </span>
+        ),
+        description: (
+          <span>
+            {ago < 172800000 ? (
+              <>
+                You are our{" "}
+                <span className="font-bold text-primary">
+                  {user.signup_number}th
+                </span>{" "}user.
+              </>
+            ) : (
+              <>
+                Hello,{" "}
+                <span className="font-bold text-primary">{user.username}</span>!
+                You&apos;ve been with us since {since}.
+              </>
+            )}
+          </span>
+        ),
+      });
+    } else if (!banedWelcomePages.includes(pathname)) {
+      toast({
+        title: "Login for better experiens!",
+        description: "Or sign up...",
+        action: (
+          <ToastAction
+            altText="Login"
+            onClick={() => router.push("/auth/login")}
+          >
+            Login
+          </ToastAction>
+        ),
+      });
+    }
+  }, [pathname, router, sentWelcome, user]);
+
+  useEffect(() => {
+    const page = protectedPages.filter(({ href }) => pathname == href);
+    if (!page) return;
+    
+  }, [pathname, router, user]);
 
   return (
     <UserContext.Provider

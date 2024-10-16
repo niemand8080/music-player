@@ -24,6 +24,11 @@ from flask import Flask, send_file, abort, request, jsonify, make_response # typ
 # Load environment variables from .env file
 load_dotenv()
 
+''' Suno API
+https://aimlapi.com/app/keys
+https://aimlapi.com/suno-ai-api
+'''
+
 # TODO import playlists from YT / Kina 
 # TODO Von überall Access
 # TODO Cover für jeden Song/artist mit KI
@@ -49,7 +54,6 @@ GMAIL=os.environ.get('GMAIL')
 GMAIL_PASSWORD=os.environ.get('GMAIL_PASSWORD')
 
 ##C ----------------------------CLASSES----------------------------
-# region
 @dataclass
 class Artist:
     id: Optional[int] = None
@@ -82,11 +86,9 @@ class Song:
         
         if isinstance(self.file_exists, int):
             self.file_exists = bool(self.file_exists)
-# endregion
 ##C ----------------------------CLASSES----------------------------
 
 ##M -----------------------------MUSIC-----------------------------
-# region
 @app.route('/api/ping')
 def pong():
   return "pong"
@@ -251,11 +253,9 @@ async def get_song_data(root: str, file: str) -> Song:
     }
 
     return song_data
-# endregion
 ##M -----------------------------MUSIC-----------------------------
 
 ##U -----------------------------USER------------------------------
-# region
 # TODO user_song_data and user_song_history implementation
 @app.route('/api/taken', methods=['POST'])
 async def is_taken():
@@ -353,7 +353,7 @@ async def verify_email():
         return jsonify({"success": False, "message": ["Wrong verification code", "try again"]})
 
     await sql("UPDATE user SET verified = 1, verify_email_code = NULL, code_expiry = NULL WHERE email = ?", [email])
-    return jsonify({"success": True, "message": ["Successfully verified!", "Login to complete signing up"]})
+    return jsonify({"success": True, "message": ["Successfully verified!", "Login to complete signing up."]})
 
 @app.route('/api/send_new_code', methods=['POST'])
 async def send_new_code():
@@ -520,6 +520,7 @@ async def login_user(username: str, password: str) -> bool:
 async def get_user(token: str):
     return await sql("""
         SELECT 
+            u.id as signup_number,
             u.username,
             u.email,
             u.created_at,
@@ -529,11 +530,9 @@ async def get_user(token: str):
         INNER JOIN user u ON us.user_id = u.id
         WHERE us.session_token = ?
     """, [token], fetch_results=True)
-# endregion
 ##U -----------------------------USER------------------------------
 
 ##G -----------------------------GLOBAL----------------------------
-# region
 def get_max_amount() -> int:
 	max_amount_str: Optional[str] = request.args.get('a')
 
@@ -610,11 +609,9 @@ async def sql(query: str, params=None, fetch_results=False, fetch_success=False,
     
     print(f"Failed to execute query after {max_retries} attempts")
     return False if fetch_success else None
-# endregion
 ##G -----------------------------GLOBAL----------------------------
 
 ##S -----------------------------SETUP-----------------------------
-# region
 async def sync_songs_with_db(songs):
     artist_list = await sql('SELECT * FROM artists', fetch_results=True)
     artists = { artist.name: artist.artist_track_id for artist in artist_list }
@@ -825,11 +822,9 @@ async def init_db():
     except Exception as e:
         print(f"Error initializing database: {e}")
         raise
-# endregion
 ##S -----------------------------SETUP-----------------------------
 
 ##M -----------------------------MAIN------------------------------
-# region
 async def main():
     await init_db()
     await sync_all_songs_with_db()
@@ -845,5 +840,4 @@ if __name__ == '__main__':
         )
     finally:
         print("Bye...")
-# endregion
 ##M -----------------------------MAIN------------------------------
