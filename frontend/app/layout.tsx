@@ -50,7 +50,11 @@ export default function RootLayout({
           <UserProvider>
             <Header />
             <AudioProvider>
-              {children}
+              <div className="h-14 w-screen" />
+              <div className="h-[calc(100vh-112px)]">
+                {children}
+              </div>
+              <div className="h-14 w-screen" />
               <Player />
             </AudioProvider>
             <PageProtector />

@@ -72,7 +72,7 @@ class Song:
     genres: Optional[List[str]] = None
     birth_date: Optional[int] = None
     duration: Optional[int] = None
-    global_played: int = 0
+    listen_time_seconds: int = 0
     added: Optional[int] = None
     track_id: str = ""
     last_played: Optional[int] = None
@@ -126,6 +126,7 @@ logger.addHandler(ch)
 ##L -------------------------CUSTOM LOGGER-------------------------
 
 ##M -----------------------------MUSIC-----------------------------
+# TODO
 @app.route('/api/search', methods=['GET'])
 async def search_in_db():
     query: Optional[str] = request.args.get('q')
@@ -147,7 +148,7 @@ async def search_in_db():
             sd.artist_track_id,
             sd.album,
             sd.genres,
-            sd.global_played,
+            sd.listen_time_seconds,
             sd.last_played,
             sd.img_url,
             a.name as artist_name
@@ -157,7 +158,7 @@ async def search_in_db():
         WHERE LOWER(s.name) LIKE ? 
            OR LOWER(a.name) LIKE ? 
            OR s.track_id = ?
-        ORDER BY sd.global_played DESC, s.added DESC
+        ORDER BY sd.listen_time_seconds DESC, s.added DESC
         LIMIT ?
     """
     
@@ -214,7 +215,7 @@ async def play_song():
 
 ##D --------------------------USER MUSIC---------------------------
 # usd is user song data
-USDType = Literal["last_played", "played_count", "favorite", "rating", "skip_count", "added_to_playlist_count", "first_played", "added_to_library"]
+USDType = Literal["last_played", "listen_time_seconds", "favorite", "rating", "skip_count", "added_to_playlist_count", "first_played", "added_to_library"]
 
 async def update_usd(token: str, track_id: str, change: List[USDType], params: List[any]) -> bool:
     if not token:
@@ -254,7 +255,7 @@ async def get_all_songs(token: str):
                     sd.artist_track_id,
                     sd.album,
                     sd.genres,
-                    sd.global_played,
+                    sd.listen_time_seconds,
                     sd.last_played,
                     sd.img_url,
                     a.name as artist_name,
@@ -262,7 +263,8 @@ async def get_all_songs(token: str):
                     ud.rating,
                     ud.last_played as i_last_played,
                     ud.skip_count,
-                    ud.added_to_library
+                    ud.added_to_library,
+                    ud.listen_time_seconds as my_listen_time_seconds
                 FROM songs s
                 LEFT JOIN songs_data sd ON sd.track_id = s.track_id
                 LEFT JOIN artists a ON a.artist_track_id = sd.artist_track_id
@@ -283,7 +285,7 @@ async def get_all_songs(token: str):
                     sd.artist_track_id,
                     sd.album,
                     sd.genres,
-                    sd.global_played,
+                    sd.listen_time_seconds,
                     sd.last_played,
                     sd.img_url,
                     a.name as artist_name
@@ -690,7 +692,7 @@ async def get_song_data(root: str, file: str) -> Song:
             sd.artist_track_id,
             sd.album,
             sd.genres,
-            sd.global_played,
+            sd.listen_time_seconds,
             sd.last_played,
             a.name as artist_name
         FROM songs s
@@ -711,7 +713,7 @@ async def get_song_data(root: str, file: str) -> Song:
         "genres": audio.tags.get('GENRE', [''])[0] or (song.genres if song else ""),
         "birth_date": birth_date or (song.birth_date if song else 0),
         "duration": duration or (song.duration if song else 0),
-        "global_played": song.global_played if song else 0,
+        "listen_time_seconds": song.listen_time_seconds if song else 0,
         "added": song.added if song else get_time(),
         "track_id": track_id,
         "last_played": song.last_played if song else None,
@@ -761,7 +763,7 @@ async def sync_songs_with_db(songs):
                 """, [song["name"], 1, artist_name, song["birth_date"], song["duration"], get_time(), song["path"], song["track_id"], song["yt_link"]])
             await sql("""
                 INSERT INTO songs_data
-                (name, artist_track_id, album, genres, global_played, last_played, track_id)
+                (name, artist_track_id, album, genres, listen_time_seconds, last_played, track_id)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
                 """, [song["name"], artist_track_id, song.get("album"), song.get("genres"), 0, 0, song["track_id"]])
             logger.debug(f"Created new \033[33mSong\033[0m: \033[35m{song_data[0]}\033[0m")
@@ -837,7 +839,7 @@ async def init_db():
             artist_track_id TEXT,
             album TEXT,
             genres TEXT,
-            global_played INTEGER DEFAULT 0,
+            listen_time_seconds INTEGER DEFAULT 0,
             last_played INTEGER DEFAULT 0,
             track_id TEXT UNIQUE,
             img_url TEXT,
@@ -888,7 +890,7 @@ async def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER NOT NULL,
             track_id TEXT NOT NULL,
-            played_count INTEGER DEFAULT 0,
+            listen_time_seconds INTEGER DEFAULT 0,
             favorite INTEGER DEFAULT 0,
             rating INTEGER DEFAULT 0 CHECK (rating >= 0 AND rating <= 5),
             last_played INTEGER,
@@ -908,7 +910,6 @@ async def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER NOT NULL,
             track_id TEXT NOT NULL,
-            played_count INTEGER DEFAULT 0,
             skipped_count INTEGER DEFAULT 0,
             listen_time_seconds INTEGER DEFAULT 0,
             date INTEGER NOT NULL,

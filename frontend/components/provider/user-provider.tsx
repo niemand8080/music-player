@@ -153,6 +153,11 @@ const getAvatarFallback = (username: string): string => {
   return username.slice(0, 1).toUpperCase();
 };
 
+//!current
+const updatedUSD = () => {
+
+}
+
 export const logOut = async () => {
   try {
     await axios.post(
