@@ -44,6 +44,9 @@ const config: Config = {
   				DEFAULT: 'hsl(var(--error))',
   				foreground: 'hsl(var(--error-foreground))'
   			},
+				skeleton: {
+  				DEFAULT: 'hsl(var(--skeleton))',
+  			},
   			border: 'hsl(var(--border))',
   			input: 'hsl(var(--input))',
   			ring: 'hsl(var(--ring))',
