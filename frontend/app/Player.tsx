@@ -26,21 +26,25 @@ export const PlayButtons = () => {
         setLast(now);
         setCountLeft((prev) => prev + 1)
         setTimeout(() => setCountLeft((prev) => prev + 1), 100);
-      }} className="group relative flex items-center hover:text-primary transition-all duration-300 rotate-180">
+      }} className="group relative flex items-center hover:text-primary rotate-180">
         <Play
           size={20}
+          style={{ transition: "colors 0.15" }}
           className={`${countLeft % 2 == 0 ? "translate-x-3 opacity-0 scale-0 duration-300" : "duration-0"} fill-current absolute transition-all`}
         />
         <Play
           size={20}
+          style={{ transition: "colors 0.15" }}
           className={`${countLeft % 2 == 0 ? "translate-x-5 opacity-0 scale-0 duration-300" : "duration-0 translate-x-3"} fill-current absolute transition-all`}
         />
         <Play
           size={20}
+          style={{ transition: "colors 0.15" }}
           className={`${countLeft % 2 == 1 ? "-translate-x-2 opacity-0 scale-0 duration-0" : "opacity-100 translate-x-0 scale-100 duration-300"} fill-current absolute transition-all`}
         />
         <Play
           size={20}
+          style={{ transition: "colors 0.15" }}
           className={`${countLeft % 2 == 1 ? "-translate-x-5 opacity-0 scale-0" : "opacity-100 translate-x-3 scale-100 duration-300"} fill-current absolute transition-all`}
         />
       </button>
@@ -54,12 +58,14 @@ export const PlayButtons = () => {
           className={`${
             isPlaying && "opacity-0 scale-0"
           } absolute fill-current transition-all duration-300`}
+          style={{ transition: "colors 0.15" }}
         />
         <Pause
           size={28}
           className={`${
             !isPlaying && "opacity-0 scale-0"
           } absolute fill-current transition-all duration-300`}
+          style={{ transition: "colors 0.15" }}
         />
       </button>
       
@@ -69,21 +75,25 @@ export const PlayButtons = () => {
         setLast(now);
         setCountRight((prev) => prev + 1)
         setTimeout(() => setCountRight((prev) => prev + 1), 100);
-      }} className="group relative flex items-center hover:text-primary transition-all duration-300">
+      }} className="group relative flex items-center hover:text-primary">
         <Play
           size={20}
+          style={{ transition: "colors 0.15" }}
           className={`${countRight % 2 == 0 ? "translate-x-3 opacity-0 scale-0 duration-300" : "duration-0"} fill-current absolute transition-all`}
         />
         <Play
           size={20}
+          style={{ transition: "colors 0.15" }}
           className={`${countRight % 2 == 0 ? "translate-x-5 opacity-0 scale-0 duration-300" : "duration-0 translate-x-3"} fill-current absolute transition-all`}
         />
         <Play
           size={20}
+          style={{ transition: "colors 0.15" }}
           className={`${countRight % 2 == 1 ? "-translate-x-2 opacity-0 scale-0 duration-0" : "opacity-100 translate-x-0 scale-100 duration-300"} fill-current absolute transition-all`}
         />
         <Play
           size={20}
+          style={{ transition: "colors 0.15" }}
           className={`${countRight % 2 == 1 ? "-translate-x-5 opacity-0 scale-0" : "opacity-100 translate-x-3 scale-100 duration-300"} fill-current absolute transition-all`}
         />
       </button>
