@@ -7,7 +7,6 @@ import secrets
 import hashlib
 import asyncio
 import logging
-from dataclasses import dataclass
 from typing import Optional, List
 from collections import namedtuple
 from typing import Optional, Literal
@@ -31,9 +30,8 @@ https://aimlapi.com/suno-ai-api
 '''
 
 # TODO import playlists from YT / Kina 
-# TODO Von überall Access
-# TODO Cover für jeden Song/artist mit KI
-# TODO Genre für jeden Song
+# TODO Access everywhere
+# TODO Cover for each Song/artist mit KI
 # TODO Global Playlists (z.B. Relax, Wohlfühlen)
 
 # TODO Anime intros etc.
@@ -53,41 +51,6 @@ DB_FILE = f"{ENV_DIR}/data/data.db"
 
 GMAIL=os.environ.get('GMAIL')
 GMAIL_PASSWORD=os.environ.get('GMAIL_PASSWORD')
-
-##C ----------------------------CLASSES----------------------------
-@dataclass
-class Artist:
-    id: Optional[int] = None
-    name: str = ""
-    artist_track_id: str = ""
-
-@dataclass
-class Song:
-    id: Optional[int] = None
-    file_exists: bool = True
-    name: str = ""
-    artist_track_id: Optional[str] = None
-    artist_name: Optional[str] = None
-    album: Optional[str] = None
-    genres: Optional[List[str]] = None
-    birth_date: Optional[int] = None
-    duration: Optional[int] = None
-    listen_time_seconds: int = 0
-    added: Optional[int] = None
-    track_id: str = ""
-    last_played: Optional[int] = None
-    rel_path: Optional[str] = None
-    yt_link: Optional[str] = None
-
-    def __post_init__(self):
-        if isinstance(self.genres, str):
-            self.genres = self.genres.split(',')
-        elif self.genres is None:
-            self.genres = []
-        
-        if isinstance(self.file_exists, int):
-            self.file_exists = bool(self.file_exists)
-##C ----------------------------CLASSES----------------------------
 
 ##L -------------------------CUSTOM LOGGER-------------------------
 class CustomFormatter(logging.Formatter):
@@ -147,7 +110,8 @@ async def search_in_db():
             s.yt_link,
             sd.artist_track_id,
             sd.album,
-            sd.genres,
+            sd.genre,
+            sd.tags,
             sd.listen_time_seconds,
             sd.last_played,
             sd.img_url,
@@ -156,8 +120,8 @@ async def search_in_db():
         LEFT JOIN songs_data sd ON sd.track_id = s.track_id
         LEFT JOIN artists a ON a.artist_track_id = sd.artist_track_id
         WHERE LOWER(s.name) LIKE ? 
-           OR LOWER(a.name) LIKE ? 
-           OR s.track_id = ?
+            OR LOWER(a.name) LIKE ? 
+            OR s.track_id = ?
         ORDER BY sd.listen_time_seconds DESC, s.added DESC
         LIMIT ?
     """
@@ -165,7 +129,7 @@ async def search_in_db():
     # Execute the query using your custom sql function
     songs = await sql(sql_query, [pattern, pattern, query, limit], fetch_results=True)
     
-    result: List[Song] = format_namedtuple(songs)
+    result = format_namedtuple(songs)
     return jsonify(result)
 
 @app.route('/api/songs', methods=['GET'])
@@ -175,7 +139,7 @@ async def get_songs():
 
     songs = await get_all_songs(token)
 
-    result: List[Song] = format_namedtuple(songs)
+    result = format_namedtuple(songs)
 	
     return jsonify(result[:max_amount])
 
@@ -185,7 +149,7 @@ async def play_song():
     token = request.cookies.get('session_token')
 
     if track_id is None:
-      track_id = "00000000"
+        track_id = "00000000"
     
     try:
         songs = await sql("SELECT * FROM songs WHERE track_id = ?", [track_id], fetch_results=True)
@@ -254,7 +218,8 @@ async def get_all_songs(token: str):
                     s.yt_link,
                     sd.artist_track_id,
                     sd.album,
-                    sd.genres,
+                    sd.genre,
+                    sd.tags,
                     sd.listen_time_seconds,
                     sd.last_played,
                     sd.img_url,
@@ -284,7 +249,8 @@ async def get_all_songs(token: str):
                     s.yt_link,
                     sd.artist_track_id,
                     sd.album,
-                    sd.genres,
+                    sd.genre,
+                    sd.tags,
                     sd.listen_time_seconds,
                     sd.last_played,
                     sd.img_url,
@@ -294,7 +260,8 @@ async def get_all_songs(token: str):
                 LEFT JOIN artists a ON a.artist_track_id = sd.artist_track_id
                 ORDER BY RANDOM()
             """, fetch_results=True)
-    
+    if songs.tags:
+        songs.tags = songs.tags.split(",")
     return songs
 ##D --------------------------USER MUSIC---------------------------
 
@@ -345,7 +312,7 @@ async def login():
             return jsonify({'success': False, 'message': 'Failed to create session'})
     else:
         return jsonify({'success': False, 'message': 'Invalid credentials'})
-    
+
 @app.route('/api/protected', methods=['GET'])
 async def protected():
     token = request.cookies.get('session_token')
@@ -661,7 +628,7 @@ async def sql(query: str, params=None, fetch_results=False, fetch_success=False,
 ##G -----------------------------GLOBAL----------------------------
 
 ##S -----------------------------SETUP-----------------------------
-async def get_song_data(root: str, file: str) -> Song:
+async def get_song_data(root: str, file: str):
     name, _ = os.path.splitext(file)
     full_path = os.path.join(root, file)
     audio = File(full_path)
@@ -691,7 +658,8 @@ async def get_song_data(root: str, file: str) -> Song:
             s.yt_link,
             sd.artist_track_id,
             sd.album,
-            sd.genres,
+            sd.genre,
+            sd.tags,
             sd.listen_time_seconds,
             sd.last_played,
             a.name as artist_name
@@ -704,13 +672,14 @@ async def get_song_data(root: str, file: str) -> Song:
 
     relative_path = os.path.relpath(full_path, MUSIC_DIR)
     
-    song_data: Song = {
+    song_data = {
         "name": name,
         "file_exists": 1,
         "artist_track_id": song.artist_track_id if song else "",
         "artist_name": artist_name or (song.artist_name if song else ""),
         "album": audio.tags.get('ALBUM', [''])[0] or (song.album if song else ""),
-        "genres": audio.tags.get('GENRE', [''])[0] or (song.genres if song else ""),
+        "genre": audio.tags.get('GENRE', [''])[0] or (song.genre if song else ""),
+        "tags": song.tags if song else "",
         "birth_date": birth_date or (song.birth_date if song else 0),
         "duration": duration or (song.duration if song else 0),
         "listen_time_seconds": song.listen_time_seconds if song else 0,
@@ -750,7 +719,7 @@ async def sync_songs_with_db(songs):
             artist_track_id = artists.get(artist_name, "00000000")
 
         song_data = [
-            song["name"], 1, artist_track_id, artist_name, song.get("album"), song.get("genres"),
+            song["name"], 1, artist_track_id, artist_name, song.get("album"), song.get("genre"),
             song["birth_date"], song["duration"], 0, get_time(), song["track_id"], None,
             song["path"], song["yt_link"]
         ]
@@ -763,9 +732,9 @@ async def sync_songs_with_db(songs):
                 """, [song["name"], 1, artist_name, song["birth_date"], song["duration"], get_time(), song["path"], song["track_id"], song["yt_link"]])
             await sql("""
                 INSERT INTO songs_data
-                (name, artist_track_id, album, genres, listen_time_seconds, last_played, track_id)
+                (name, artist_track_id, album, genre, listen_time_seconds, last_played, track_id)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
-                """, [song["name"], artist_track_id, song.get("album"), song.get("genres"), 0, 0, song["track_id"]])
+                """, [song["name"], artist_track_id, song.get("album"), song.get("genre"), 0, 0, song["track_id"]])
             logger.debug(f"Created new \033[33mSong\033[0m: \033[35m{song_data[0]}\033[0m")
         except Exception as e:
             logger.error(f"Error inserting song: {e}")
@@ -838,7 +807,8 @@ async def init_db():
             name TEXT NOT NULL,
             artist_track_id TEXT,
             album TEXT,
-            genres TEXT,
+            genre TEXT,
+            tags TEXT,
             listen_time_seconds INTEGER DEFAULT 0,
             last_played INTEGER DEFAULT 0,
             track_id TEXT UNIQUE,

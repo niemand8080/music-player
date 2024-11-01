@@ -153,9 +153,8 @@ const getAvatarFallback = (username: string): string => {
   return username.slice(0, 1).toUpperCase();
 };
 
-//!current
 const updatedUSD = () => {
-
+  console.log("")
 }
 
 export const logOut = async () => {

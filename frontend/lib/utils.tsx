@@ -11,7 +11,8 @@ export type SongType = {
   artist_track_id: string;
   artist_name: string | null;
   album: string | null;
-  genres: string | null;
+  genre: string | null;
+  tags: [string] | null;
   birth_date: number;
   duration: number;
   listen_time_seconds: number;
