@@ -60,7 +60,7 @@ class CustomFormatter(logging.Formatter):
     red = "\x1b[31;20m"
     bold_red = "\x1b[31;1m"
     reset = "\x1b[0m"
-    format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s (%(filename)s:%(lineno)d)"
+    format = "(%(filename)s:%(lineno)d) %(asctime)s - %(levelname)s - %(message)s" # %(name)s
 
     FORMATS = {
         logging.DEBUG: grey + format + reset,
@@ -134,8 +134,9 @@ async def search_in_db():
 
 @app.route('/api/songs', methods=['GET'])
 async def get_songs():
-    token = request.cookies.get("session_token")
+    token = request.cookies.get('session_token')
     max_amount = get_max_amount()
+    logger.info(f"Token: {token}")
 
     songs = await get_all_songs(token)
 
@@ -169,7 +170,7 @@ async def play_song():
         await sql("UPDATE songs_data SET last_played = ? WHERE track_id = ?", [get_time(), track_id])
 
         if token is not None:
-            await update_usd(token, track_id, ['last_played'], [get_time()])
+            await update_usd(token, track_id, "last_played", get_time())
 
         return send_file(full_path, mimetype=mimetype, as_attachment=False)
     except Exception as e:
@@ -178,11 +179,26 @@ async def play_song():
 ##M -----------------------------MUSIC-----------------------------
 
 ##D --------------------------USER MUSIC---------------------------
-# usd is user song data
-USDType = Literal["last_played", "listen_time_seconds", "favorite", "rating", "skip_count", "added_to_playlist_count", "first_played", "added_to_library"]
+@app.route('/api/uusd', methods=['POST'])
+async def uusd():
+    data = request.json
+    token = request.cookies.get('session_token')
+    track_id = data.get('track_id')
+    change = data.get('change')
+    to = data.get('to')
 
-async def update_usd(token: str, track_id: str, change: List[USDType], params: List[any]) -> bool:
-    if not token:
+    updated = await update_usd(token, track_id, change, to)
+
+    if updated:
+        return jsonify({ "success": True , "message": "Successfully Changed user specific data" })
+    else:
+        return jsonify({ "success": False , "error": "Not Authorized" })
+
+# usd is user song data
+USDType = Literal["last_played", "listen_time_seconds", "favorite", "rating", "skip_count", "first_played", "added_to_library"]
+
+async def update_usd(token: tuple[str, None], track_id: str, change: USDType, param: tuple[str, int]) -> bool:
+    if token is None:
         logger.error("No token provided")
         return False
 
@@ -191,11 +207,20 @@ async def update_usd(token: str, track_id: str, change: List[USDType], params: L
         logger.error(f"No user found for token: {token}")
         return False
 
-    set_clause = ", ".join(f"{field} = ?" for field in change)
-    query = f"UPDATE user_song_data SET {set_clause} WHERE track_id = ? AND user_id = ?"
+    song = await sql("SELECT 1 FROM songs_data WHERE track_id = ?", [track_id], fetch_success=True)
+    if not song:
+        logger.error(f"No Song found for track_id: {track_id}")
+        return False
+    
+    user_id = user[0].signup_number
+    usd = await sql("SELECT 1 FROM user_song_data WHERE track_id = ? AND user_id = ?", [track_id, user_id], fetch_success=True)
+    if not usd:
+        if await sql("INSERT INTO user_song_data (user_id, track_id) VALUES (?,?)", [user_id, track_id], fetch_success=True):
+            logger.error(f"Failed to create instance for: (user_id: {user_id}, track_id: {track_id})")
+            return False
     
     try:
-        await sql(query, params + [track_id, user[0].signup_number])
+        await sql(f"UPDATE user_song_data SET {change} = ? WHERE track_id = ? AND user_id = ?", [param, track_id, user_id])
         return True
     except Exception as e:
         logger.error(f"Error updating user song data: {str(e)}")
@@ -204,8 +229,10 @@ async def update_usd(token: str, track_id: str, change: List[USDType], params: L
 async def get_all_songs(token: str):
     songs = None
     if token is not None:
+        logger.debug(f"Getting user from token: {token}")
         user = await get_user(token)
         if user and user[0]:
+            logger.debug(f"username: {user[0].username}")
             songs = await sql("""
                 SELECT 
                     s.file_exists,
@@ -236,7 +263,10 @@ async def get_all_songs(token: str):
                 LEFT JOIN user_song_data ud ON ud.track_id = s.track_id AND ud.user_id = ?
                 ORDER BY RANDOM()
             """, [user[0].signup_number], fetch_results=True)
+        else:
+            logger.debug(f"No user found, token: {token}")
     if songs is None:
+        logger.debug(f"No user found for token: {token}")
         songs = await sql("""
                 SELECT 
                     s.file_exists,
@@ -260,8 +290,11 @@ async def get_all_songs(token: str):
                 LEFT JOIN artists a ON a.artist_track_id = sd.artist_track_id
                 ORDER BY RANDOM()
             """, fetch_results=True)
-    if songs.tags:
-        songs.tags = songs.tags.split(",")
+    for song in songs:
+        if song.tags:
+            song.tags = song.tags.split(",")
+        else:
+            await sql("UPDATE songs_data SET tags = '' WHERE track_id = ?", [song.track_id])
     return songs
 ##D --------------------------USER MUSIC---------------------------
 
@@ -865,7 +898,6 @@ async def init_db():
             rating INTEGER DEFAULT 0 CHECK (rating >= 0 AND rating <= 5),
             last_played INTEGER,
             skip_count INTEGER DEFAULT 0,
-            added_to_playlist_count INTEGER DEFAULT 0,
             first_played INTEGER,
             added_to_library INTEGER DEFAULT 0,
             FOREIGN KEY (user_id) REFERENCES user(id),

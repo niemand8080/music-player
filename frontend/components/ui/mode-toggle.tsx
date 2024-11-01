@@ -16,11 +16,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-export const ModeToggle: React.FC<{ allways?: boolean }> = ({ allways }) => {
+export const ModeToggle: React.FC<{ always?: boolean }> = ({ always }) => {
   const { setTheme } = useTheme();
 
   return (
-    <div className={`${!allways && "hidden"} sm:block`}>
+    <div className={`${!always && "hidden"} sm:block`}>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="icon">
@@ -45,7 +45,7 @@ export const ModeToggle: React.FC<{ allways?: boolean }> = ({ allways }) => {
   );
 }
 
-export function DorpdownModeSelector() {
+export function DropdownModeSelector() {
   const { setTheme } = useTheme();
 
   return (

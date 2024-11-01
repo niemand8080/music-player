@@ -26,22 +26,22 @@ const Header: React.FC = () => {
 
   if (simpleHeader.includes(pathname))
     return (
-      <div className="fixed top-0 left-0 w-screen h-14 flex px-5 justify-between items-center z-10 backdrop-blur-sm">
+      <div className="fixed top-0 left-0 max-w-[100vw] w-screen h-14 flex px-5 justify-between items-center z-10 backdrop-blur-sm">
         <Link href={"/"} className="font-bold flex gap-2 items-center">
           <Activity size={16} className="text-primary" />
-          <span>Musicplayer</span>
+          <span>Music Player</span>
         </Link>
         <div className="flex sm:gap-5 gap-3 items-center">
-          <ModeToggle allways={true} />
+          <ModeToggle always={true} />
         </div>
       </div>
     );
 
   return (
-    <div className="fixed top-0 left-0 w-screen h-14 flex justify-between px-3 sm:px-5 items-center z-10 backdrop-blur-sm">
+    <div className="fixed top-0 left-0 max-w-[100vw] w-screen h-14 flex justify-between px-3 sm:px-5 items-center z-10 backdrop-blur-sm">
       <Link href={"/"} className="font-bold flex gap-2 items-center">
         <Activity size={16} className="text-primary" />
-        <span className="">Musicplayer</span>
+        <span className="">Music Player</span>
       </Link>
       <div className="flex space-x-3 items-center h-6">
         <ResponsiveHeaderLinks />

@@ -5,7 +5,7 @@ import { useAudio } from "@/components/provider/audio-provider";
 
 export const Player = () => {
   return (
-    <div className="w-screen fixed bottom-0 left-0 border-t h-14 py-2 flex px-5 justify-between items-center z-10 backdrop-blur-sm">
+    <div className="max-w-[100vw] w-screen fixed bottom-0 left-0 border-t h-14 py-2 flex px-5 justify-between items-center z-10 backdrop-blur-sm">
       <div></div>
       <PlayButtons />
       <div></div>

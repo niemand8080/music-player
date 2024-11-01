@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useUser } from "@/components/provider/user-provider";
 import {
@@ -14,7 +14,7 @@ import { LogOut, Settings, Star } from "lucide-react";
 import { logOut } from "../provider/user-provider";
 import Link from "next/link";
 import { Button } from "../ui/button";
-import { DorpdownModeSelector } from "../ui/mode-toggle";
+import { DropdownModeSelector } from "../ui/mode-toggle";
 import { Checkbox } from "../ui/checkbox";
 import { SongType } from "@/lib/utils";
 
@@ -51,7 +51,7 @@ export const UserAvatar = () => {
               Settings
             </Link>
           </DropdownMenuItem>
-          <DorpdownModeSelector />
+          <DropdownModeSelector />
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={logOut} destructive className="gap-2 flex">
             <LogOut size={16} />
@@ -64,8 +64,16 @@ export const UserAvatar = () => {
 };
 
 export const UserStar: React.FC<{ song: SongType }> = ({ song }) => {
+  const { updatedUSD, user } = useUser();
+  const handleButtonClick = () => {
+    updatedUSD(song.track_id, "favorite", !song.favorite);
+    song.favorite = !song.favorite;
+  };
+  useEffect(() => {
+    console.log(song);
+  }, [song]);
   return (
-    <button className="font-medium text-primary w-full items-center justify-center flex">
+    <button disabled={!user} onClick={handleButtonClick} className="font-medium text-primary w-full items-center justify-center flex">
       <Star
         size={16}
         className={`${song.favorite && "fill-primary"} hover:fill-primary`}

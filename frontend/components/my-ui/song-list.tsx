@@ -35,7 +35,7 @@ export const SongTable: React.FC<{ songs: SongType[] }> = ({ songs }) => {
           <TableHead>Name</TableHead>
           <TableHead>Artist</TableHead>
           <TableHead>Album</TableHead>
-          <TableHead>Genres</TableHead>
+          <TableHead>Genre</TableHead>
           <TableHead className="text-right">Added</TableHead>
           <TableHead>Last Time Played</TableHead>
           <TableHead>YT Link</TableHead>
@@ -49,7 +49,7 @@ export const SongTable: React.FC<{ songs: SongType[] }> = ({ songs }) => {
             <TableCell className="border-r">{song.name}</TableCell>
             <TableCell className="border-r">{song.artist_name}</TableCell>
             <TableCell className="border-r">{song.album || (<span className="text-secondary-foreground">None</span>)}</TableCell>
-            <TableCell className="border-r">{song.genres || (<span className="text-secondary-foreground">None</span>)}</TableCell>
+            <TableCell className="border-r">{song.genre || (<span className="text-secondary-foreground">None</span>)}</TableCell>
             <TableCell className="text-right">{formatDate(song.added)}</TableCell>
             <TableCell className="border-r">{song.last_played || (<span className="text-secondary-foreground">Never Played</span>)}</TableCell>
             <TableCell className="border-r">{song.yt_link || (<span className="text-secondary-foreground">None</span>)}</TableCell>

@@ -18,6 +18,7 @@ export type UserType = {
 interface UserContextType {
   user: UserType | undefined;
   logOut: () => void;
+  updatedUSD: (track_id: string, change: USDType, to: string | number | boolean) => Promise<boolean>;
 }
 
 const banedWelcomePages = [
@@ -137,6 +138,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
       value={{
         user,
         logOut,
+        updatedUSD
       }}
     >
       {children}
@@ -153,8 +155,27 @@ const getAvatarFallback = (username: string): string => {
   return username.slice(0, 1).toUpperCase();
 };
 
-const updatedUSD = () => {
-  console.log("")
+type USDType = "last_played" | "listen_time_seconds" | "favorite" | "rating" | "skip_count" | "first_played" | "added_to_library";
+
+const updatedUSD = async (track_id: string, change: USDType, to: string | number | boolean): Promise<boolean> => {
+  if (typeof to == "boolean") {
+    if (to) to = 1
+    else to = 0
+  }
+  try {
+    const response = await axios.post(process.env.NEXT_PUBLIC_API_URL + "/uusd", {
+      track_id,
+      change,
+      to
+    }, {
+      withCredentials: true
+    });
+    console.log(response.data);
+    return true
+  } catch (error) {
+    console.log("Error:", error);
+    return false
+  }
 }
 
 export const logOut = async () => {
