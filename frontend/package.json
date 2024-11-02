@@ -31,8 +31,10 @@
     "lucide-react": "^0.451.0",
     "next": "14.2.15",
     "next-themes": "^0.3.0",
+    "p5": "^1.11.1",
     "react": "^18",
     "react-dom": "^18",
+    "react-p5": "^1.4.1",
     "tailwind-merge": "^2.5.3",
     "tailwindcss-animate": "^1.0.7"
   },

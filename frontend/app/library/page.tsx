@@ -1,3 +1,4 @@
+"use client";
 import { SongType } from "@/lib/utils";
 import { columns } from "./columns";
 import { DataTable } from "@/components/ui/data-table";
@@ -10,8 +11,10 @@ import {
 async function getData(): Promise<SongType[]> {
   try {
     const response = await axios.get(
-      process.env.NEXT_PUBLIC_API_URL + "/songs"
+      process.env.NEXT_PUBLIC_API_URL + "/songs",
+      { withCredentials: true }
     );
+    console.log(process.env.NEXT_PUBLIC_API_URL + "/songs");
     return response.data;
   } catch (error) {
     console.error("Error: ", error);

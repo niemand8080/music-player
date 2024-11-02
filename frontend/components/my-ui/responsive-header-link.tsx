@@ -12,14 +12,14 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Menu } from "lucide-react";
 
-type PageType = { lable: string; href: string };
+type PageType = { label: string; href: string };
 
 const pages: PageType[] = [
-  { lable: "Home", href: "/" },
-  { lable: "For You", href: "/for-you" },
-  { lable: "Discover", href: "/discover" },
-  { lable: "Playlists", href: "/playlists" },
-  { lable: "Library", href: "/library" },
+  { label: "Home", href: "/" },
+  { label: "For You", href: "/for-you" },
+  { label: "Discover", href: "/discover" },
+  { label: "Playlists", href: "/playlists" },
+  { label: "Library", href: "/library" },
 ];
 
 export const ResponsiveHeaderLinks: React.FC = () => {
@@ -38,20 +38,20 @@ export const ResponsiveHeaderLinks: React.FC = () => {
             <SheetTitle>Menu</SheetTitle>
           </SheetHeader>
           <nav className="flex flex-col space-y-4 mt-4">
-            {pages.map(({ lable, href }) => (
+            {pages.map(({ label, href }) => (
               <Link
                 key={href}
                 href={href}
                 className="text-lg font-medium hover:text-primary transition-colors disabled:text-secondary-foreground"
               >
-                {lable}
+                {label}
               </Link>
             ))}
           </nav>
         </SheetContent>
       </Sheet>
       <div className="gap-4 hidden sm:flex">
-        {pages.map(({ lable, href }) => (
+        {pages.map(({ label, href }) => (
           <Link
             key={href}
             href={href}
@@ -59,7 +59,7 @@ export const ResponsiveHeaderLinks: React.FC = () => {
               pathname == href && "text-primary"
             } hover:text-primary transition-all duration-300 disabled:text-secondary-foreground`}
           >
-            {lable}
+            {label}
           </Link>
         ))}
       </div>

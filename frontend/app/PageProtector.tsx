@@ -32,7 +32,10 @@ export const PageProtector = () => {
   const [currentPP, setCurrentPP] = useState<ProtectedPageType>();
 
   useEffect(() => {
-    if (user) return;
+    if (user) {
+      setCurrentPP(undefined);
+      return;
+    }
     const page = protectedPages.filter(({ href }) => pathname == href)[0];
     setCurrentPP(undefined);
     if (!page) return;
@@ -46,7 +49,7 @@ export const PageProtector = () => {
           <AlertDialogTitle>
             To visit{" "}
             <span className="text-primary">{currentPP && currentPP.label}</span>{" "}
-            you need to be loged in!
+            you need to be logged in!
           </AlertDialogTitle>
           <AlertDialogDescription>
             You can create a new free account by clicking on the Login button.
@@ -58,7 +61,9 @@ export const PageProtector = () => {
           </AlertDialogCancel>
           <AlertDialogAction>
             {currentPP && currentPP.redirect ? (
-              <Link href={currentPP.redirect.href}>{currentPP.redirect.label}</Link>
+              <Link href={currentPP.redirect.href}>
+                {currentPP.redirect.label}
+              </Link>
             ) : (
               <Link href={"/auth/login"}>Login</Link>
             )}

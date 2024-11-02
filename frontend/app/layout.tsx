@@ -8,6 +8,7 @@ import Header from "./Header";
 import { Toaster } from "@/components/ui/toaster";
 import { PageProtector } from "./PageProtector";
 import { Player } from "./Player";
+import { Padding } from "./Padding";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -50,11 +51,9 @@ export default function RootLayout({
           <UserProvider>
             <Header />
             <AudioProvider>
-              <div className="h-14 w-screen" />
-              <div className="h-[calc(100vh-112px)]">
+              <Padding>
                 {children}
-              </div>
-              <div className="h-14 w-screen" />
+              </Padding>
               <Player />
             </AudioProvider>
             <PageProtector />
