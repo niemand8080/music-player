@@ -34,9 +34,12 @@ export type SongType = {
 export const pad = (num: number, length = 2, start = true): string =>
   start ? String(num).padStart(length, "0") : String(num).padEnd(length, "0");
 
-export const formatTime = (sec: number, type?: "ago" | "listen_time"): string => {
+export const formatTime = (
+  sec: number,
+  type?: "ago" | "listen_time"
+): string => {
   const days = Math.floor(sec / (60 * 60 * 24));
-  const hours = Math.floor(sec / (60 * 60) % 24);
+  const hours = Math.floor((sec / (60 * 60)) % 24);
   const minutes = Math.floor(sec / 60);
   const seconds = Math.floor(sec % 60);
 
@@ -62,4 +65,69 @@ export const formatTime = (sec: number, type?: "ago" | "listen_time"): string =>
   if (hours > 0) return `${hours}:${pad(minutes)}:${pad(seconds)}`;
 
   return `${minutes}:${pad(seconds)}`;
+};
+
+export function download(
+  name: string,
+  data: string[],
+  type: string = "text/plain"
+) {
+  const file = new File(data, name, {
+    type,
+  });
+
+  const link = document.createElement("a");
+  const url = URL.createObjectURL(file);
+
+  link.href = url;
+  link.download = file.name;
+  link.style.display = "none";
+  document.body.appendChild(link);
+  link.click();
+
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
+}
+
+export const pageSettings = [
+  { path: "/auth", simpleHeader: true, playerHidden: true, noPadding: true },
+  {
+    path: "/auth/login",
+    simpleHeader: true,
+    playerHidden: true,
+    noPadding: true,
+  },
+  {
+    path: "/auth/sign-up",
+    simpleHeader: true,
+    playerHidden: true,
+    noPadding: true,
+  },
+  {
+    path: "/auth/verify-email",
+    simpleHeader: true,
+    playerHidden: true,
+    noPadding: true,
+  },
+  {
+    path: "/link-grabber",
+    simpleHeader: true,
+    playerHidden: true,
+    noPadding: true,
+  },
+  {
+    path: "/visualizer",
+    simpleHeader: true,
+    playerHidden: true,
+    noPadding: true,
+  },
+];
+
+export const getPageSetting = (
+  pathname: string,
+  setting: "simpleHeader" | "playerHidden" | "noPadding"
+): boolean => {
+  const page = pageSettings.filter((page) => page.path == pathname)[0];
+  if (!page) return false;
+  return page[setting];
 };

@@ -12,7 +12,7 @@ export type UserType = {
   verified: boolean;
   img_url: string;
   fallback: string;
-  signup_number: number;
+  id: number;
 };
 
 interface UserContextType {
@@ -55,7 +55,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
             verified: !!user.verified,
             img_url: user.img_url,
             fallback: getAvatarFallback(user.username),
-            signup_number: user.signup_number,
+            id: user.id,
           };
           setUser(newUser);
         }
@@ -103,7 +103,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
               <>
                 You are our{" "}
                 <span className="font-bold text-primary">
-                  {user.signup_number}th
+                  {user.id}th
                 </span>{" "}
                 user.
               </>

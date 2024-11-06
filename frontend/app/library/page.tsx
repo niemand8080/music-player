@@ -1,5 +1,4 @@
 "use client";
-import { SongType } from "@/lib/utils";
 import { columns } from "./columns";
 import { DataTable } from "@/components/ui/data-table";
 import axios from "axios";
@@ -7,20 +6,7 @@ import {
   DataTableFilterItemType,
   DataTableExtraDataType,
 } from "@/components/ui/data-table";
-
-async function getData(): Promise<SongType[]> {
-  try {
-    const response = await axios.get(
-      process.env.NEXT_PUBLIC_API_URL + "/songs",
-      { withCredentials: true }
-    );
-    console.log(process.env.NEXT_PUBLIC_API_URL + "/songs");
-    return response.data;
-  } catch (error) {
-    console.error("Error: ", error);
-    return [];
-  }
-}
+import { useEffect, useState } from "react";
 
 const filters: DataTableFilterItemType[] = [
   { label: "Title", id: "name" },
@@ -46,8 +32,25 @@ const labels: DataTableExtraDataType[] = [
   { label: "List Time", id: "my_listen_time_seconds", authorized: true },
 ];
 
-export default async function Page() {
-  const data = await getData();
+export default function Page() {
+  const [data, setData] = useState([]);
+
+   const getData = async () => {
+    try {
+      const response = await axios.get(
+        process.env.NEXT_PUBLIC_API_URL + "/songs",
+        { withCredentials: true }
+      );
+      console.log(process.env.NEXT_PUBLIC_API_URL + "/songs");
+      setData(response.data);
+    } catch (error) {
+      console.error("Error: ", error);
+    }
+  }
+
+  useEffect(() => {
+    getData()
+  }, []);
 
   return (
     <div className="flex h-full justify-center gap-5 max-w-[100vw] border">

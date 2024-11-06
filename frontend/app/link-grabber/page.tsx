@@ -7,6 +7,7 @@ import {
   CardFooter,
   CardHeader,
 } from "@/components/ui/card";
+import { Checkbox } from '@/components/ui/checkbox'
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Loader } from "@/components/my-ui/loader";
@@ -34,6 +35,7 @@ const Page = () => {
     errors: 0,
     links: 0,
   });
+  const [appleMusicFormat, setAppleMusicFormat] = useState<boolean>(true);
 
   const getLinks = async (queries: string[]): Promise<LinkType[]> => {
     try {
@@ -63,13 +65,17 @@ const Page = () => {
     const queries = [];
     const errors = [];
     for (const line of lines) {
-      const splits = line.split("\t");
-      if (splits.length < 6) {
-        if (line == "") continue;
-        errors.push(line);
-        continue;
+      if (appleMusicFormat) {
+        const splits = line.split("\t");
+        if (splits.length < 6) {
+          if (line == "") continue;
+          errors.push(line);
+          continue;
+        }
+        queries.push(`${splits[0]} ${splits[5]}`);
+      } else {
+        queries.push(line)
       }
-      queries.push(`${splits[0]} ${splits[5]}`);
     }
     return { queries: queries, errors: errors };
   };
@@ -92,16 +98,42 @@ const Page = () => {
     setDetected({ errors: errors.length, links: queries.length });
   };
 
+  const openSearchURLs = async () => {
+    const lines = extractLinks();
+    const queries = lines.queries;
+    const links = [];
+    
+    for (const query of queries) {
+      links.push(`https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`)
+    }
+
+    try {
+      const response = await axios.post(process.env.NEXT_PUBLIC_API_URL + "/open-search-urls", 
+        { urls: links }
+      );
+      console.log(response.data)
+    } catch(error) {
+      console.log(error)
+    }
+
+    return 
+  };
+
+  useEffect(() => {
+    handleChange()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appleMusicFormat]);
+
   return (
     <div className="fixed top-0 left-0 w-screen h-screen items-center justify-center flex flex-col">
       <Card
         className={`${
           downloadReady
-            ? "w-96"
+            ? "w-96 max-h-[546px]"
             : links.length <= 0
-            ? "w-screen h-full"
-            : "w-[608px]"
-        } max-w-5xl max-h-[546px] overflow-y-auto transition-all overflow-hidden`}
+            ? "w-screen h-full max-h-[546px]"
+            : "w-auto"
+        } max-w-7xl overflow-y-auto transition-all overflow-hidden`}
       >
         <Loader loading={loading} size={35}>
           {links.length <= 0 ? (
@@ -121,7 +153,17 @@ const Page = () => {
                 <span className="text-secondary-foreground">
                   {detected.links} links and {detected.errors} errors detected
                 </span>
-                <Button onClick={handleClick}>Get Links</Button>
+
+                <div className="flex gap-3">
+                  <div className="flex items-center gap-2 text-secondary-foreground">
+                    <Checkbox defaultChecked onClick={() => setAppleMusicFormat(prev => !prev)} />
+                    <span>Apple Music</span>
+                  </div>
+                  <Button onClick={openSearchURLs} variant={"outline"}>
+                    Open Tabs w URLs
+                  </Button>
+                  <Button onClick={handleClick}>Get Links</Button>
+                </div>
               </CardFooter>
             </>
           ) : (
@@ -141,7 +183,7 @@ const DataHandler: React.FC<{
   links: LinkType[];
   errors: string[];
   downloadable: (b: boolean) => void;
-}> = ({ links, downloadable, errors }) => {
+}> = ({ links, downloadable }) => {
   const [current, setCurrent] = useState<number>(0);
   const [processed, setProcessed] = useState<LinkType[]>([]);
 
@@ -162,7 +204,7 @@ const DataHandler: React.FC<{
   useEffect(() => {
     if (current >= links.length) downloadable(true);
     else downloadable(false);
-  }, [current]);
+  }, [current, links, downloadable]);
 
   const processFiles = (copy: boolean) => {
     const accepted = [];
@@ -192,12 +234,19 @@ const DataHandler: React.FC<{
         <CardHeader className="text-2xl font-bold">Download</CardHeader>
       ) : (
         <div className="text-2xl font-bold mt-6 px-6 pb-2 truncate w-full">
-          {links[Math.min(links.length, current)].title}
+          <a
+            target="_blank"
+            href={`https://www.youtube.com/watch?v=${
+              links[Math.min(links.length, current)].video_id
+            }`}
+          >
+            {links[Math.min(links.length, current)].title}
+          </a>
         </div>
       )}
       <CardContent
         className={`${
-          current >= links.length ? "text-secondary-foreground" : "w-[560px]"
+          current >= links.length ? "text-secondary-foreground" : "w-full"
         } transition-all`}
       >
         {current < links.length ? (
@@ -210,7 +259,8 @@ const DataHandler: React.FC<{
             <span className="text-primary">`accepted.txt`</span> file will be
             Downloaded that contains all accepted links and a{" "}
             <span className="text-primary">`dismissed.txt`</span> file that
-            contains all dismissed links. (only if more then one video accepted/dismissed)
+            contains all dismissed links. (only if more then one video
+            accepted/dismissed)
             <br />
             By clicking on the Copy button the accepted links will be copied to
             clipboard.
@@ -251,7 +301,9 @@ const DataHandler: React.FC<{
           </>
         ) : (
           <div className="flex gap-2 ml-auto">
-            <Button onClick={goBack} className="mr-1">Go Back</Button>
+            <Button onClick={goBack} className="mr-1">
+              Go Back
+            </Button>
             <Button onClick={() => processFiles(true)} variant={"outline"}>
               Copy
             </Button>
@@ -272,15 +324,15 @@ const VideoEmbed: React.FC<{ link: LinkType; current: boolean }> = ({
   if (!current) return;
   return (
     <>
-      <div className="w-[560px] h-[315px] shadow-2xl shadow-primary-foreground/10 rounded-lg relative">
+      <div className="w-[1066px] h-[600px] shadow-2xl shadow-primary-foreground/10 rounded-lg relative">
         <iframe
-          width="560"
-          height="315"
+          width="1066"
+          height="600"
           src={`https://www.youtube-nocookie.com/embed/${link.video_id}?autoplay=1`}
           title="YouTube video player"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
           referrerPolicy="strict-origin-when-cross-origin"
-          allowFullScreen 
+          allowFullScreen
           className="w-full rounded-lg top-0 left-0 absolute z-10"
         ></iframe>
       </div>

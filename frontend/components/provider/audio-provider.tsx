@@ -21,6 +21,7 @@ const stopPlyingOn = [
   "/auth/login",
   "/auth/sign-up",
   "/auth/verify-email",
+  "/link-grabber",
 ];
 
 export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
@@ -32,7 +33,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
 
   useEffect(() => {
     audioRef.current = new Audio();
-    audioRef.current.src = "https://192.168.7.146:8000/api/play?t=5bc3a58c";
+    audioRef.current.src = "https://192.168.7.146:8000/api/play?t=d26a4183";
 
     return () => {
       audioRef.current?.pause();

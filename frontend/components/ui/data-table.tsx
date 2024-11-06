@@ -2,11 +2,13 @@
 
 import * as React from "react";
 import {
+  Column,
   ColumnDef,
   ColumnFiltersState,
   flexRender,
   SortingState,
   VisibilityState,
+  Table as TableType,
   getCoreRowModel,
   getFilteredRowModel,
   getPaginationRowModel,
@@ -30,8 +32,11 @@ import {
   ArrowUpIcon,
   CaretSortIcon,
   EyeNoneIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  DoubleArrowLeftIcon,
+  DoubleArrowRightIcon,
 } from "@radix-ui/react-icons";
-import { Column } from "@tanstack/react-table";
 
 import { cn } from "@/lib/utils";
 import {
@@ -44,20 +49,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 import {
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  DoubleArrowLeftIcon,
-  DoubleArrowRightIcon,
-} from "@radix-ui/react-icons";
-
-import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Table as TableType } from "@tanstack/react-table";
 import { useUser } from "../provider/user-provider";
 
 export type DataTableFilterItemType = {
@@ -89,7 +86,7 @@ export function DataTable<TData, TValue>({
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     []
   );
-  const [currentFilterLable, setCurrentFilterLable] = React.useState("Title");
+  const [currentFilterLabel, setCurrentFilterLabel] = React.useState("Title");
   const [currentFilter, setCurrentFilter] = React.useState("name");
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({});
@@ -114,16 +111,16 @@ export function DataTable<TData, TValue>({
   React.useEffect(() => {
     table.setPageSize(20);
     const filter = filters.filter((f) => f.id == currentFilter);
-    setCurrentFilterLable(filter[0].label)
-  }, [currentFilter]);
+    setCurrentFilterLabel(filter[0].label)
+  }, [currentFilter, filters, table]);
 
-  const getEtra = (id: string) => labels.filter((l) => l.id == id)[0];
+  const getFiltered = (id: string) => labels.filter((l) => l.id == id)[0];
 
   return (
     <div>
       <div className="flex items-center gap-4 py-4">
         <Input
-          placeholder={`Filter ${currentFilterLable}...`}
+          placeholder={`Filter ${currentFilterLabel}...`}
           value={
             (table.getColumn(currentFilter)?.getFilterValue() as string) ?? ""
           }
@@ -139,7 +136,7 @@ export function DataTable<TData, TValue>({
           }}
         >
           <SelectTrigger className="w-52">
-            <SelectValue placeholder={currentFilterLable} />
+            <SelectValue placeholder={currentFilterLabel} />
           </SelectTrigger>
           <SelectContent side="top">
             {filters.map((filter) => (
@@ -164,12 +161,12 @@ export function DataTable<TData, TValue>({
                   <DropdownMenuCheckboxItem
                     key={column.id}
                     checked={column.getIsVisible()}
-                    disabled={getEtra(column.id).authorized && !user}
+                    disabled={getFiltered(column.id).authorized && !user}
                     onCheckedChange={(value) =>
                       column.toggleVisibility(!!value)
                     }
                   >
-                    {getEtra(column.id).label}
+                    {getFiltered(column.id).label}
                   </DropdownMenuCheckboxItem>
                 );
               })}
@@ -251,15 +248,16 @@ export function DataTableColumnHeader<TData, TValue>({
   authorized,
 }: DataTableColumnHeaderProps<TData, TValue>) {
   const { user } = useUser();
-  if (!column.getCanSort()) {
-    return <div className={cn(className)}>{title}</div>;
-  }
   if (hidden) column.toggleVisibility(false);
-
+  
   React.useEffect(() => {
     if (!user && authorized) column.toggleVisibility(false);
     else column.toggleVisibility(true);
-  }, [user]);
+  }, [user, column, authorized]);
+  
+  if (!column.getCanSort()) {
+    return <div className={cn(className)}>{title}</div>;
+  }
 
   return (
     <div className={cn("flex items-center space-x-2", className)}>
