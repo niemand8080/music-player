@@ -18,6 +18,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "@/hooks/use-toast";
 import { findLogin } from "@/lib/my_utils";
 import { logOut } from "@/components/provider/user-provider";
+import { api } from "@/lib/utils";
 
 const Page: React.FC = () => {
   const router = useRouter();
@@ -39,16 +40,18 @@ const Page: React.FC = () => {
   const [alreadyLogedIn, setAlreadyLogedIn] = useState<boolean>(false);
 
   const isTaken = async (value: string): Promise<boolean> => {
-    try {
-      const response = await axios.post(
-        process.env.NEXT_PUBLIC_API_URL + "/taken",
-        { value: value }
-      );
-      return response.data.exists;
-    } catch (error) {
-      console.error("Error: ", error);
-      return false;
-    }
+    const data = await api("/taken", "POST", { value });
+    return data.exists;
+    // try {
+    //   const response = await axios.post(
+    //     process.env.NEXT_PUBLIC_API_URL + "/taken",
+    //     { value: value }
+    //   );
+    //   return response.data.exists;
+    // } catch (error) {
+    //   console.error("Error: ", error);
+    //   return false;
+    // }
   };
 
   const register_user = async (

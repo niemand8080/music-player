@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useUser } from "@/components/provider/user-provider";
 import {
@@ -69,9 +69,7 @@ export const UserStar: React.FC<{ song: SongType }> = ({ song }) => {
     updatedUSD(song.track_id, "favorite", !song.favorite);
     song.favorite = !song.favorite;
   };
-  useEffect(() => {
-    console.log(song);
-  }, [song]);
+  
   return (
     <button disabled={!user} onClick={handleButtonClick} className="font-medium text-primary w-full items-center justify-center flex">
       <Star

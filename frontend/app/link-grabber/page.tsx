@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Loader } from "@/components/my-ui/loader";
 import axios from "axios";
 import { Check, X, ChevronLeft } from "lucide-react";
-import { download } from "@/lib/utils";
+import { api, download } from "@/lib/utils";
 
 type LinkType = {
   channel_title: string;
@@ -38,20 +38,23 @@ const Page = () => {
   const [appleMusicFormat, setAppleMusicFormat] = useState<boolean>(true);
 
   const getLinks = async (queries: string[]): Promise<LinkType[]> => {
-    try {
-      const response = await axios.post(
-        process.env.NEXT_PUBLIC_API_URL + "/grab-links",
-        {
-          queries,
-        }
-      );
-      console.log(response.data);
-      if (response.data.error) return [];
-      return response.data;
-    } catch (error) {
-      console.log("Error:", error);
-      return [];
-    }
+    const data = await api("/grab-links", "POST", { queries });
+    if (data == false || data.error) return [];
+    else return data
+    // try {
+    //   const response = await axios.post(
+    //     process.env.NEXT_PUBLIC_API_URL + "/grab-links",
+    //     {
+    //       queries,
+    //     }
+    //   );
+    //   console.log(response.data);
+    //   if (response.data.error) return [];
+    //   return response.data;
+    // } catch (error) {
+    //   console.log("Error:", error);
+    //   return [];
+    // }
   };
 
   const extractLinks = () => {
@@ -107,14 +110,8 @@ const Page = () => {
       links.push(`https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`)
     }
 
-    try {
-      const response = await axios.post(process.env.NEXT_PUBLIC_API_URL + "/open-search-urls", 
-        { urls: links }
-      );
-      console.log(response.data)
-    } catch(error) {
-      console.log(error)
-    }
+    const data = await api("/open-search-urls", "POST", { urls: links });
+    console.log(data);
 
     return 
   };

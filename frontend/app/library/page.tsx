@@ -1,12 +1,14 @@
 "use client";
 import { columns } from "./columns";
-import { DataTable } from "@/components/ui/data-table";
+import { DataTable } from "./data-table";
 import axios from "axios";
 import {
   DataTableFilterItemType,
   DataTableExtraDataType,
-} from "@/components/ui/data-table";
+} from "@/app/library/data-table";
 import { useEffect, useState } from "react";
+import { useUser } from "@/components/provider/user-provider";
+import { api } from "@/lib/utils";
 
 const filters: DataTableFilterItemType[] = [
   { label: "Title", id: "name" },
@@ -33,24 +35,19 @@ const labels: DataTableExtraDataType[] = [
 ];
 
 export default function Page() {
+  const { user, triedAuth } = useUser();
   const [data, setData] = useState([]);
 
-   const getData = async () => {
-    try {
-      const response = await axios.get(
-        process.env.NEXT_PUBLIC_API_URL + "/songs",
-        { withCredentials: true }
-      );
-      console.log(process.env.NEXT_PUBLIC_API_URL + "/songs");
-      setData(response.data);
-    } catch (error) {
-      console.error("Error: ", error);
-    }
-  }
+  const getData = async () => {
+    setData(await api("/songs"))
+  };
 
   useEffect(() => {
-    getData()
-  }, []);
+    alert("Implement TanStack Table:\nhttps://tanstack.com/table/latest/docs/guide/column-ordering")
+    getData();
+  }, [user]);
+
+  if (!triedAuth) return;
 
   return (
     <div className="flex h-full justify-center gap-5 max-w-[100vw] border">
@@ -60,6 +57,7 @@ export default function Page() {
           data={data}
           filters={filters}
           labels={labels}
+          logged_in={!!user}
         />
         <div className="h-20"></div>
       </div>

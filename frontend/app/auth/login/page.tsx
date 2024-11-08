@@ -27,10 +27,10 @@ const Page: React.FC = () => {
   const usernameRef = useRef<HTMLInputElement>(null);
 
   const [isLodaing, setIsloading] = useState<boolean>(false);
-  const [alreadyLogedIn, setAlreadyLogedIn] = useState<boolean>(false);
+  const [alreadyLoggedIn, setAlreadyLoggedIn] = useState<boolean>(false);
 
   useEffect(() => {
-    const found = async () => setAlreadyLogedIn(await findLogin());
+    const found = async () => setAlreadyLoggedIn(await findLogin());
     found();
 
     const handleKeyPress = (e: KeyboardEvent) => {
@@ -65,7 +65,7 @@ const Page: React.FC = () => {
     const username = usernameElement.value;
     const password = passwordElement.value;
 
-    if (alreadyLogedIn) logOut();
+    if (alreadyLoggedIn) logOut();
 
     try {
       const response = await axios.post(

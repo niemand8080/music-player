@@ -1,6 +1,6 @@
 "use client";
 import { ModeToggle } from "@/components/ui/mode-toggle";
-import React, { useEffect } from "react";
+import React from "react";
 import { Activity } from "lucide-react";
 import Link from "next/link";
 import { ResponsiveHeaderLinks } from "@/components/my-ui/responsive-header-link";
@@ -11,12 +11,6 @@ import { getPageSetting } from "@/lib/utils";
 
 const Header: React.FC = () => {
   const pathname = usePathname();
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const scrollY = window.scrollY;
-    console.log(scrollY);
-  }, []);
 
   if (getPageSetting(pathname, 'simpleHeader'))
     return (

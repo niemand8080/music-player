@@ -1,6 +1,6 @@
 "use client";
 
-import * as React from "react";
+import React, { useEffect, useState } from "react";
 import {
   Column,
   ColumnDef,
@@ -55,7 +55,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useUser } from "../provider/user-provider";
+import { useUser } from "@/components/provider/user-provider";
 
 export type DataTableFilterItemType = {
   label: string;
@@ -73,6 +73,7 @@ interface DataTableProps<TData, TValue> {
   data: TData[];
   filters: DataTableFilterItemType[];
   labels: DataTableExtraDataType[];
+  logged_in: boolean;
 }
 
 export function DataTable<TData, TValue>({
@@ -80,16 +81,16 @@ export function DataTable<TData, TValue>({
   data,
   filters,
   labels,
+  logged_in,
 }: DataTableProps<TData, TValue>) {
-  const { user } = useUser();
-  const [sorting, setSorting] = React.useState<SortingState>([]);
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>(
     []
   );
-  const [currentFilterLabel, setCurrentFilterLabel] = React.useState("Title");
-  const [currentFilter, setCurrentFilter] = React.useState("name");
+  const [currentFilterLabel, setCurrentFilterLabel] = useState("Title");
+  const [currentFilter, setCurrentFilter] = useState("name");
   const [columnVisibility, setColumnVisibility] =
-    React.useState<VisibilityState>({});
+    useState<VisibilityState>({});
 
   const table = useReactTable({
     data,
@@ -108,10 +109,10 @@ export function DataTable<TData, TValue>({
     },
   });
 
-  React.useEffect(() => {
+  useEffect(() => {
     table.setPageSize(20);
     const filter = filters.filter((f) => f.id == currentFilter);
-    setCurrentFilterLabel(filter[0].label)
+    setCurrentFilterLabel(filter[0].label);
   }, [currentFilter, filters, table]);
 
   const getFiltered = (id: string) => labels.filter((l) => l.id == id)[0];
@@ -161,7 +162,7 @@ export function DataTable<TData, TValue>({
                   <DropdownMenuCheckboxItem
                     key={column.id}
                     checked={column.getIsVisible()}
-                    disabled={getFiltered(column.id).authorized && !user}
+                    disabled={getFiltered(column.id).authorized && !logged_in}
                     onCheckedChange={(value) =>
                       column.toggleVisibility(!!value)
                     }
@@ -247,13 +248,14 @@ export function DataTableColumnHeader<TData, TValue>({
   hidden,
   authorized,
 }: DataTableColumnHeaderProps<TData, TValue>) {
-  const { user } = useUser();
+  const { user, triedAuth } = useUser();
   if (hidden) column.toggleVisibility(false);
   
-  React.useEffect(() => {
+  useEffect(() => {
+    if (!triedAuth) return;
     if (!user && authorized) column.toggleVisibility(false);
     else column.toggleVisibility(true);
-  }, [user, column, authorized]);
+  }, [user, column, authorized, triedAuth]);
   
   if (!column.getCanSort()) {
     return <div className={cn(className)}>{title}</div>;

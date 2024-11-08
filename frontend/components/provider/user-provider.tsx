@@ -4,6 +4,7 @@ import { toast } from "@/hooks/use-toast";
 import axios from "axios";
 import { ToastAction } from "../ui/toast";
 import { usePathname, useRouter } from "next/navigation";
+import { api } from "@/lib/utils";
 
 export type UserType = {
   created_at: number;
@@ -17,6 +18,7 @@ export type UserType = {
 
 interface UserContextType {
   user: UserType | undefined;
+  triedAuth: boolean;
   logOut: () => void;
   updatedUSD: (track_id: string, change: USDType, to: string | number | boolean) => Promise<boolean>;
 }
@@ -37,6 +39,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
   const pathname = usePathname();
   const [user, setUser] = useState<UserType>();
   const [sentWelcome, setSentWelcome] = useState<boolean>(true);
+  const [triedAuth, setTriedAuth] = useState<boolean>(false);
 
   useEffect(() => {
     const getUser = async () => {
@@ -58,6 +61,8 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
             id: user.id,
           };
           setUser(newUser);
+        } else {
+          setTriedAuth(true)
         }
         if (typeof window == "undefined") return;
         const lastWelcome = Number(
@@ -75,6 +80,10 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
     };
     getUser();
   }, []);
+
+  useEffect(() => {
+    if (user) setTriedAuth(true);
+  }, [user]);
 
   useEffect(() => {
     if (sentWelcome) return;
@@ -137,6 +146,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
     <UserContext.Provider
       value={{
         user,
+        triedAuth,
         logOut,
         updatedUSD
       }}
@@ -162,20 +172,23 @@ const updatedUSD = async (track_id: string, change: USDType, to: string | number
     if (to) to = 1
     else to = 0
   }
-  try {
-    const response = await axios.post(process.env.NEXT_PUBLIC_API_URL + "/uusd", {
-      track_id,
-      change,
-      to
-    }, {
-      withCredentials: true
-    });
-    console.log(response.data);
-    return true
-  } catch (error) {
-    console.log("Error:", error);
-    return false
-  }
+  const data = await api("/uusd", "POST", { track_id, change, to })
+  if (data == false) return false;
+  else return true
+  // try {
+  //   const response = await axios.post(process.env.NEXT_PUBLIC_API_URL + "/uusd", {
+  //     track_id,
+  //     change,
+  //     to
+  //   }, {
+  //     withCredentials: true
+  //   });
+  //   console.log(response.data);
+  //   return true
+  // } catch (error) {
+  //   console.log("Error:", error);
+  //   return false
+  // }
 }
 
 export const logOut = async () => {

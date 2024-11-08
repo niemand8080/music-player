@@ -125,18 +125,20 @@ async def search_in_db():
     result = format_namedtuple(songs)
     return jsonify(result)
 
-# TODO continue...
 @app.route('/api/songs', methods=['GET'])
 async def get_songs():
     token = request.cookies.get('session_token')
-    max_amount = get_max_amount()
-    logger.info(f"Token: {token}")
+    max_amount = request.args.get('a')
 
-    songs = await get_all_songs(token)
-
+    if max_amount.isdigit():
+        max_amount = int(max_amount)
+    else:
+        max_amount = -1
+    
+    songs = await get_songs(token, max_amount)
     result = format_namedtuple(songs)
-	
-    return jsonify(result[:max_amount])
+
+    return jsonify(result)
 
 current_track_id = ""
 
@@ -180,6 +182,10 @@ async def play_song():
 ##M -----------------------------MUSIC-----------------------------
 
 ##D --------------------------USER MUSIC---------------------------
+@app.route('/api/get_session_data', methods=['POST'])
+async def get_session_data():
+    return jsonify()
+
 @app.route('/api/uusd', methods=['POST'])
 async def uusd():
     data = request.json
@@ -227,13 +233,11 @@ async def update_usd(token: tuple[str, None], track_id: str, change: USDType, pa
         logger.error(f"Error updating user song data: {str(e)}")
         return False
 
-async def get_all_songs(token: str):
+async def get_songs(token: str, max_amount = -1):
     songs = None
     if token is not None:
-        logger.debug(f"Getting user from token: {token}")
         user = await get_user(token)
         if user:
-            logger.debug(f"username: {user.username}")
             songs = await sql("""
                 SELECT 
                     s.file_exists,
@@ -263,11 +267,9 @@ async def get_all_songs(token: str):
                 LEFT JOIN artists a ON a.artist_id = sd.artist_id
                 LEFT JOIN user_song_data ud ON ud.track_id = s.track_id AND ud.user_id = ?
                 ORDER BY RANDOM()
-            """, [user.id], fetch_results=True)
-        else:
-            logger.debug(f"No user found, token: {token}")
+                LIMIT ?
+            """, [user.id, max_amount], fetch_results=True)
     if songs is None:
-        logger.debug(f"No user found for token: {token}")
         songs = await sql("""
                 SELECT 
                     s.file_exists,
@@ -290,16 +292,15 @@ async def get_all_songs(token: str):
                 LEFT JOIN songs_data sd ON sd.track_id = s.track_id
                 LEFT JOIN artists a ON a.artist_id = sd.artist_id
                 ORDER BY RANDOM()
-            """, fetch_results=True)
+                LIMIT
+            """, [max_amount], fetch_results=True)
     return songs
 
 async def get_song(track_id: str, token: str):
     song = None
     if token is not None:
-        logger.debug(f"Getting user from token: {token}")
         user = await get_user(token)
         if user:
-            logger.debug(f"username: {user.username}")
             song = await sql("""
                 SELECT 
                     s.file_exists,
@@ -328,12 +329,10 @@ async def get_song(track_id: str, token: str):
                 LEFT JOIN songs_data sd ON sd.track_id = s.track_id
                 LEFT JOIN artists a ON a.artist_id = sd.artist_id
                 LEFT JOIN user_song_data ud ON ud.track_id = s.track_id AND ud.user_id = ?
-                WHERE track_id = ?
+                WHERE track_id
+                LIMIT 1
             """, [user.id, track_id], fetch_results=True)[0]
-        else:
-            logger.debug(f"No user found, token: {token}")
     if song is None:
-        logger.debug(f"No user found for token: {token}")
         song = await sql("""
                 SELECT 
                     s.file_exists,
@@ -356,6 +355,7 @@ async def get_song(track_id: str, token: str):
                 LEFT JOIN songs_data sd ON sd.track_id = s.track_id
                 LEFT JOIN artists a ON a.artist_id = sd.artist_id
                 WHERE track_id = ?
+                LIMIT 1
             """, [track_id], fetch_results=True)[0]
     return song
 ##D --------------------------USER MUSIC---------------------------
@@ -735,18 +735,6 @@ async def search_yt(query: str, max_results: int = 1):
 
 def get_time(add: int = 0):
     return round(time.time() * 1000) + (add * 1000)
-
-def get_max_amount() -> int:
-	max_amount_str: Optional[str] = request.args.get('a')
-
-	if max_amount_str is None:
-		return -1
-
-	try:
-		max_amount = int(max_amount_str)
-		return max_amount if max_amount >= 0 else -1
-	except ValueError:
-		return -1
 
 def format_namedtuple(songs, first = False):
     named = [

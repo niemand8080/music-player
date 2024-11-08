@@ -187,7 +187,7 @@ CREATE TABLE IF NOT EXISTS user (
   code_expiry INTEGER
 );
 "
-# sessions for users
+# Create user_sessions table
 sqlite3 $DB_FILE "
 CREATE TABLE IF NOT EXISTS user_sessions (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -228,15 +228,35 @@ CREATE TABLE IF NOT EXISTS user_song_history (
   FOREIGN KEY (track_id) REFERENCES songs(track_id)
 );
 "
+# Create user_session_data table
+sqlite3 $DB_FILE "
+CREATE TABLE IF NOT EXISTS user_session_data (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  json TEXT NOT NULL,
+  session_token TEXT NOT NULL,
+  FOREIGN KEY (session_token) REFERENCES user_sessions(session_token)
+);
+"
+
+# Index for songs
 sqlite3 $DB_FILE "CREATE INDEX IF NOT EXISTS idx_songs_track_id ON songs(track_id);"
+# Index for song_data
 sqlite3 $DB_FILE "CREATE INDEX IF NOT EXISTS idx_songs_data_track_id ON songs_data(track_id);"
+# Index for artists
 sqlite3 $DB_FILE "CREATE INDEX IF NOT EXISTS idx_artists_artist_id ON artists(artist_id);"
+# Index for user_sessions
 sqlite3 $DB_FILE "CREATE INDEX IF NOT EXISTS idx_user_sessions_user_id ON user_sessions(user_id);"
 sqlite3 $DB_FILE "CREATE INDEX IF NOT EXISTS idx_user_sessions_session_token ON user_sessions(session_token);"
+# Index for user_song_data
 sqlite3 $DB_FILE "CREATE INDEX IF NOT EXISTS idx_user_song_data_user_id ON user_song_data(user_id);"
 sqlite3 $DB_FILE "CREATE INDEX IF NOT EXISTS idx_user_song_data_track_id ON user_song_data(track_id);"
+# Index for user_song_history
 sqlite3 $DB_FILE "CREATE INDEX IF NOT EXISTS idx_user_song_history_user_id ON user_song_history(user_id);"
 sqlite3 $DB_FILE "CREATE INDEX IF NOT EXISTS idx_user_song_history_track_id ON user_song_history(track_id);"
 sqlite3 $DB_FILE "CREATE INDEX IF NOT EXISTS idx_user_song_history_date ON user_song_history(date);"
+# Index for user_session_data
+sqlite3 $DB_FILE "CREATE INDEX IF NOT EXISTS idx_user_session_data_json ON user_session_data(json);"
+sqlite3 $DB_FILE "CREATE INDEX IF NOT EXISTS idx_user_session_data_session_token ON user_session_data(session_token);"
 
 python "sort.py"

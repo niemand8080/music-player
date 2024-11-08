@@ -10,7 +10,7 @@ export const Player = () => {
   if (getPageSetting(pathname, 'playerHidden')) return null;
   return (
     <>
-      <div className="max-w-[100vw] w-screen fixed bottom-0 left-0 border-t h-14 py-2 flex px-5 justify-between items-center z-10 backdrop-blur-sm">
+      <div className="max-w-[100vw] w-screen fixed bottom-0 left-0 border-t h-16 py-2 flex px-5 justify-between items-center z-10 backdrop-blur-sm">
         <div></div>
         <PlayButtons />
         <div></div>
@@ -19,22 +19,25 @@ export const Player = () => {
   );
 };
 
-export const PlayButtons = () => {
-  const { isPlaying, togglePlayPause } = useAudio();
+export const PlayButtons: React.FC = () => {
+  const { isPlaying, togglePlayPause, playNext, playLast, nextSongs, songHistory, playInfinity } = useAudio();
   const [countRight, setCountRight] = useState<number>(0);
   const [countLeft, setCountLeft] = useState<number>(0);
   const [last, setLast] = useState<number>(0);
   return (
     <div className="flex gap-10">
+      {/* Play Last */}
       <button
+        disabled={songHistory.length == 0}
         onClick={() => {
+          playLast();
           const now = new Date().getTime();
           if (now < last + 400) return;
           setLast(now);
           setCountLeft((prev) => prev + 1);
           setTimeout(() => setCountLeft((prev) => prev + 1), 100);
         }}
-        className="group relative flex items-center hover:text-primary rotate-180"
+        className="group relative flex items-center hover:text-primary rotate-180 disabled:text-secondary"
       >
         <Play
           size={20}
@@ -74,6 +77,7 @@ export const PlayButtons = () => {
         />
       </button>
 
+      {/* Play Pause */}
       <button
         onClick={togglePlayPause}
         className="relative flex items-center justify-center hover:text-primary"
@@ -94,15 +98,18 @@ export const PlayButtons = () => {
         />
       </button>
 
+      {/* Play Next */}
       <button
+        disabled={nextSongs.length == 0 && !playInfinity}
         onClick={() => {
+          playNext();
           const now = new Date().getTime();
           if (now < last + 400) return;
           setLast(now);
           setCountRight((prev) => prev + 1);
           setTimeout(() => setCountRight((prev) => prev + 1), 100);
         }}
-        className="group relative flex items-center hover:text-primary"
+        className="group relative flex items-center hover:text-primary disabled:text-secondary"
       >
         <Play
           size={20}

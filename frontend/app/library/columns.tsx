@@ -5,7 +5,7 @@ import { Star } from "lucide-react";
 
 import { SongType, formatTime } from "@/lib/utils";
 import { UserStarRating, UserStar } from "@/components/my-ui/user";
-import { DataTableColumnHeader } from "@/components/ui/data-table";
+import { DataTableColumnHeader } from "@/app/library/data-table";
 
 export const columns: ColumnDef<SongType>[] = [
   {
@@ -17,6 +17,7 @@ export const columns: ColumnDef<SongType>[] = [
       const name = row.getValue("name") as string;
       return <span className="truncate">{name}</span>;
     },
+    size: 100,
   },
   {
     accessorKey: "artist_name",
