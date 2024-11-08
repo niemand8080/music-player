@@ -1,5 +1,7 @@
+# -*- coding: utf-8 -*-
+import math
 import os
-import re
+import subprocess
 import time
 import random 
 import string
@@ -7,7 +9,8 @@ import secrets
 import hashlib
 import asyncio
 import logging
-from typing import Optional, List
+from typing import Optional
+from datetime import datetime
 from collections import namedtuple
 from typing import Optional, Literal
 from email.mime.text import MIMEText # send mail
@@ -19,38 +22,28 @@ from mutagen import File # type: ignore
 from flask_cors import CORS # type: ignore
 from dotenv import load_dotenv # type: ignore
 from flask_executor import Executor # type: ignore
+from googleapiclient.discovery import build # type: ignore
+from googleapiclient.errors import HttpError # type: ignore
 from flask import Flask, send_file, abort, request, jsonify, make_response # type: ignore
 
 # Load environment variables from .env file
 load_dotenv()
 
-''' Suno API
-https://aimlapi.com/app/keys
-https://aimlapi.com/suno-ai-api
-'''
-
-# TODO import playlists from YT / Kina 
-# TODO Access everywhere
-# TODO Cover for each Song/artist mit KI
-# TODO Global Playlists (z.B. Relax, Wohlfühlen)
-
-# TODO Anime intros etc.
-# TODO Eminem (Bornana)
-# TODO Pmac - One: https://www.youtube.com/watch?v=lLJyOMcFYeA
-
 app = Flask(__name__)
 executor = Executor(app)
 # CORS(app)
 IP_ADDRESS = os.environ.get('IP_ADDRESS')
-CORS(app, resources={r"/api/*": { "origins": f"https://{IP_ADDRESS if IP_ADDRESS else 'localhost'}:3000", "supports_credentials": True }})
+FRONTEND_URL = f"https://{IP_ADDRESS if IP_ADDRESS else 'localhost'}:3000"
+CORS(app, resources={r"/api/*": { "origins": FRONTEND_URL, "supports_credentials": True }})
 
 ROOT_PATH = os.environ.get("ROOT_PATH")
 ENV_DIR = f"{ROOT_PATH}{os.environ.get('ENV_DIR')}"
 MUSIC_DIR = f"{ROOT_PATH}{os.environ.get('MUSIC_DIR')}"
-DB_FILE = f"{ENV_DIR}/data/data.db"
+DB_FILE = f"{ENV_DIR}/data/music.db"
 
-GMAIL=os.environ.get('GMAIL')
-GMAIL_PASSWORD=os.environ.get('GMAIL_PASSWORD')
+GMAIL = os.environ.get('GMAIL')
+GMAIL_PASSWORD = os.environ.get('GMAIL_PASSWORD')
+GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY')
 
 ##L -------------------------CUSTOM LOGGER-------------------------
 class CustomFormatter(logging.Formatter):
@@ -60,14 +53,14 @@ class CustomFormatter(logging.Formatter):
     red = "\x1b[31;20m"
     bold_red = "\x1b[31;1m"
     reset = "\x1b[0m"
-    format = "(%(filename)s:%(lineno)d) %(asctime)s - %(levelname)s - %(message)s" # %(name)s
+    information = "\033[1m(line:%(lineno)d) %(asctime)s:\033[0m " # %(name)s / %(filename)s / %(levelname)s
 
     FORMATS = {
-        logging.DEBUG: grey + format + reset,
-        logging.INFO: blue + format + reset,
-        logging.WARNING: yellow + format + reset,
-        logging.ERROR: red + format + reset,
-        logging.CRITICAL: bold_red + format + reset
+        logging.DEBUG: information + grey + "%(message)s" + reset,
+        logging.INFO: information + blue + "%(message)s" + reset,
+        logging.WARNING: information + yellow + "%(message)s" + reset,
+        logging.ERROR: information + red + "%(message)s" + reset,
+        logging.CRITICAL: information + bold_red + "%(message)s" + reset
     }
 
     def format(self, record):
@@ -102,13 +95,13 @@ async def search_in_db():
         SELECT
             s.file_exists,
             s.name,
-            s.birth_date,
+            s.date,
             s.duration,
             s.added,
             s.rel_path as path,
             s.track_id,
             s.yt_link,
-            sd.artist_track_id,
+            sd.artist_id,
             sd.album,
             sd.genre,
             sd.tags,
@@ -118,7 +111,7 @@ async def search_in_db():
             a.name as artist_name
         FROM songs s
         LEFT JOIN songs_data sd ON sd.track_id = s.track_id
-        LEFT JOIN artists a ON a.artist_track_id = sd.artist_track_id
+        LEFT JOIN artists a ON a.artist_id = sd.artist_id
         WHERE LOWER(s.name) LIKE ? 
             OR LOWER(a.name) LIKE ? 
             OR s.track_id = ?
@@ -132,6 +125,7 @@ async def search_in_db():
     result = format_namedtuple(songs)
     return jsonify(result)
 
+# TODO continue...
 @app.route('/api/songs', methods=['GET'])
 async def get_songs():
     token = request.cookies.get('session_token')
@@ -144,37 +138,44 @@ async def get_songs():
 	
     return jsonify(result[:max_amount])
 
+current_track_id = ""
+
 @app.route('/api/play')
 async def play_song():
+    global current_track_id
     track_id = request.args.get('t')
     token = request.cookies.get('session_token')
-
-    if track_id is None:
-        track_id = "00000000"
+    range_header = request.headers.get('Range')
+    byte_range = range_header[6:] if range_header else None
     
     try:
-        songs = await sql("SELECT * FROM songs WHERE track_id = ?", [track_id], fetch_results=True)
-        song = format_namedtuple(songs)
-
-        if not song[0]["rel_path"]:
-            return { "error": "no path found" }, 404
+        if track_id is None:
+            if byte_range == "0-1" or byte_range == None:
+                songs = await sql("SELECT * FROM songs ORDER BY RANDOM() LIMIT 1", fetch_results=True)
+            else:
+                songs = await sql("SELECT * FROM songs WHERE track_id = ? LIMIT 1", [current_track_id], fetch_results=True)
+        else:
+            songs = await sql("SELECT * FROM songs WHERE track_id = ?", [track_id], fetch_results=True)
         
-        full_path = os.path.join(MUSIC_DIR, song[0]["rel_path"])
+        song = format_namedtuple(songs, first=True)
+
+        current_track_id = song['track_id']
+        
+        full_path = os.path.join(MUSIC_DIR, song["rel_path"])
         if not os.path.exists(full_path):
             logger.error(f"File not found: {full_path}")
             abort(404)
         
-        client_browser = get_client_browser()
-        mimetype = "audio/mpeg" if client_browser == "Safari" else 'audio/opus'
-
         await sql("UPDATE songs_data SET last_played = ? WHERE track_id = ?", [get_time(), track_id])
 
         if token is not None:
-            await update_usd(token, track_id, "last_played", get_time())
+            await update_usd(token, song['track_id'], "last_played", get_time())
 
-        return send_file(full_path, mimetype=mimetype, as_attachment=False)
+        logger.info(f"{song['name']} ({song['track_id']})")
+
+        return send_file(full_path)
     except Exception as e:
-        logger.error(f"Error serving {track_id}: {str(e)}")
+        logger.error(f"Error serving track:{track_id}: {str(e)}")
         abort(500)
 ##M -----------------------------MUSIC-----------------------------
 
@@ -203,7 +204,7 @@ async def update_usd(token: tuple[str, None], track_id: str, change: USDType, pa
         return False
 
     user = await get_user(token)
-    if not user or not user[0]:
+    if not user:
         logger.error(f"No user found for token: {token}")
         return False
 
@@ -212,7 +213,7 @@ async def update_usd(token: tuple[str, None], track_id: str, change: USDType, pa
         logger.error(f"No Song found for track_id: {track_id}")
         return False
     
-    user_id = user[0].signup_number
+    user_id = user.id
     usd = await sql("SELECT 1 FROM user_song_data WHERE track_id = ? AND user_id = ?", [track_id, user_id], fetch_success=True)
     if not usd:
         if await sql("INSERT INTO user_song_data (user_id, track_id) VALUES (?,?)", [user_id, track_id], fetch_success=True):
@@ -231,19 +232,19 @@ async def get_all_songs(token: str):
     if token is not None:
         logger.debug(f"Getting user from token: {token}")
         user = await get_user(token)
-        if user and user[0]:
-            logger.debug(f"username: {user[0].username}")
+        if user:
+            logger.debug(f"username: {user.username}")
             songs = await sql("""
                 SELECT 
                     s.file_exists,
                     s.name,
-                    s.birth_date,
+                    s.date,
                     s.duration,
                     s.added,
                     s.rel_path as path,
                     s.track_id,
                     s.yt_link,
-                    sd.artist_track_id,
+                    sd.artist_id,
                     sd.album,
                     sd.genre,
                     sd.tags,
@@ -259,10 +260,10 @@ async def get_all_songs(token: str):
                     ud.listen_time_seconds as my_listen_time_seconds
                 FROM songs s
                 LEFT JOIN songs_data sd ON sd.track_id = s.track_id
-                LEFT JOIN artists a ON a.artist_track_id = sd.artist_track_id
+                LEFT JOIN artists a ON a.artist_id = sd.artist_id
                 LEFT JOIN user_song_data ud ON ud.track_id = s.track_id AND ud.user_id = ?
                 ORDER BY RANDOM()
-            """, [user[0].signup_number], fetch_results=True)
+            """, [user.id], fetch_results=True)
         else:
             logger.debug(f"No user found, token: {token}")
     if songs is None:
@@ -271,13 +272,13 @@ async def get_all_songs(token: str):
                 SELECT 
                     s.file_exists,
                     s.name,
-                    s.birth_date,
+                    s.date,
                     s.duration,
                     s.added,
                     s.rel_path as path,
                     s.track_id,
                     s.yt_link,
-                    sd.artist_track_id,
+                    sd.artist_id,
                     sd.album,
                     sd.genre,
                     sd.tags,
@@ -287,15 +288,76 @@ async def get_all_songs(token: str):
                     a.name as artist_name
                 FROM songs s
                 LEFT JOIN songs_data sd ON sd.track_id = s.track_id
-                LEFT JOIN artists a ON a.artist_track_id = sd.artist_track_id
+                LEFT JOIN artists a ON a.artist_id = sd.artist_id
                 ORDER BY RANDOM()
             """, fetch_results=True)
-    for song in songs:
-        if song.tags:
-            song.tags = song.tags.split(",")
-        else:
-            await sql("UPDATE songs_data SET tags = '' WHERE track_id = ?", [song.track_id])
     return songs
+
+async def get_song(track_id: str, token: str):
+    song = None
+    if token is not None:
+        logger.debug(f"Getting user from token: {token}")
+        user = await get_user(token)
+        if user:
+            logger.debug(f"username: {user.username}")
+            song = await sql("""
+                SELECT 
+                    s.file_exists,
+                    s.name,
+                    s.date,
+                    s.duration,
+                    s.added,
+                    s.rel_path as path,
+                    s.track_id,
+                    s.yt_link,
+                    sd.artist_id,
+                    sd.album,
+                    sd.genre,
+                    sd.tags,
+                    sd.listen_time_seconds,
+                    sd.last_played,
+                    sd.img_url,
+                    a.name as artist_name,
+                    ud.favorite,
+                    ud.rating,
+                    ud.last_played as i_last_played,
+                    ud.skip_count,
+                    ud.added_to_library,
+                    ud.listen_time_seconds as my_listen_time_seconds
+                FROM songs s
+                LEFT JOIN songs_data sd ON sd.track_id = s.track_id
+                LEFT JOIN artists a ON a.artist_id = sd.artist_id
+                LEFT JOIN user_song_data ud ON ud.track_id = s.track_id AND ud.user_id = ?
+                WHERE track_id = ?
+            """, [user.id, track_id], fetch_results=True)[0]
+        else:
+            logger.debug(f"No user found, token: {token}")
+    if song is None:
+        logger.debug(f"No user found for token: {token}")
+        song = await sql("""
+                SELECT 
+                    s.file_exists,
+                    s.name,
+                    s.date,
+                    s.duration,
+                    s.added,
+                    s.rel_path as path,
+                    s.track_id,
+                    s.yt_link,
+                    sd.artist_id,
+                    sd.album,
+                    sd.genre,
+                    sd.tags,
+                    sd.listen_time_seconds,
+                    sd.last_played,
+                    sd.img_url,
+                    a.name as artist_name
+                FROM songs s
+                LEFT JOIN songs_data sd ON sd.track_id = s.track_id
+                LEFT JOIN artists a ON a.artist_id = sd.artist_id
+                WHERE track_id = ?
+            """, [track_id], fetch_results=True)[0]
+    return song
 ##D --------------------------USER MUSIC---------------------------
 
 ##U -----------------------------USER------------------------------
@@ -355,10 +417,10 @@ async def protected():
 
     user = await get_user(token)
     
-    if user and user[0]:
-        if get_time() > user[0].expiry:
+    if user:
+        if get_time() > user.expiry:
             return jsonify({'success': False, 'message': 'Session expired'})
-        return jsonify({'success': True, 'message': f'Access granted to {user[0].username}'})
+        return jsonify({'success': True, 'message': f'Access granted to {user.username}'})
     else:
         return jsonify({'success': False, 'message': 'Unauthorized'})
 
@@ -413,8 +475,8 @@ async def user_data():
     
     user = await get_user(token)
 
-    if user and user[0]:
-        return jsonify({"success": True, "user": format_namedtuple(user)[0]})
+    if user:
+        return jsonify({"success": True, "user": format_namedtuple([user])[0]})
     else:
         return jsonify({"success": False})
 
@@ -431,9 +493,7 @@ async def send_verification_email(to_email, username, verification_code):
     message["To"] = to_email
     message["Subject"] = "Your Verification Code"
 
-    code_str = str(verification_code)
-    mid = len(code_str) // 2
-    v_code = f"{code_str[:mid]} - {code_str[mid:]}"
+    v_code = str(verification_code)
 
     # Email body
     body = f"Hello {username}, \n\nyour verification code is: {v_code}\nThis code will expire in 5 minutes."
@@ -474,11 +534,10 @@ def generate_session_token(length=32):
     alphabet = string.ascii_letters + string.digits
     return ''.join(secrets.choice(alphabet) for _ in range(length))
 
-
 async def create_session_for_user(username: str):
     try:
         user = await sql("SELECT * FROM user WHERE username = ? OR email = ?", [username, username], fetch_results=True)
-        if user and not user[0]:
+        if user is None:
             return {"success": False, "message": "User not found", "session_token": None}
         
         session_token = generate_session_token()
@@ -500,11 +559,11 @@ async def create_session_for_user(username: str):
 async def send_new_verify_code(email: str):
     try:
         user = await sql("SELECT * FROM user WHERE email = ?", [email], fetch_results=True)
-        if user[0].verified:
+        if user.verified:
            return {"success": False, "message": "User already verified", "verified": True}
         
         verify_code = generate_verification_code()
-        username = user[0].username
+        username = user.username
         code_expiry = get_time(5 * 60)
 
         send_mail = await send_verification_email(email, username, verify_code)
@@ -561,9 +620,9 @@ async def login_user(username: str, password: str) -> bool:
         return False
 
 async def get_user(token: str):
-    return await sql("""
+    users = await sql("""
         SELECT 
-            u.id as signup_number,
+            u.id,
             u.username,
             u.email,
             u.created_at,
@@ -573,14 +632,109 @@ async def get_user(token: str):
         INNER JOIN user u ON us.user_id = u.id
         WHERE us.session_token = ?
     """, [token], fetch_results=True)
+
+    if users and users[0]:
+        return users[0]
+    return None
 ##U -----------------------------USER------------------------------
 
+##D ----------------------------DEVELOP----------------------------
+@app.route('/api/open-search-urls', methods=['POST'])
+def open_search_urls():
+    data = request.json
+    urls = data.get('urls')
+    date = datetime.now().strftime('%Y_%m_%d_%H-%M-%S')
+    path = f"./scripts/open_urls_{date}.scpt"
+    n = "\n"
+    t = "\t"
+    script = f"""tell application "Safari"
+    -- Launch Safari and bring to front
+    activate
+    
+    -- Create a new window
+    make new document
+    
+    -- Define the URLs you want to open
+    set urlList to {"{¬" + f"{n}{t}{t}" + f",¬{n}        ".join([f'"{url}"' for url in urls]) + " ¬" + f"{n}{t}" + "}"}
+    
+    -- Get the window we just created
+    set newWindow to window 1
+    
+    -- Set the first URL in the current tab
+    set URL of current tab of newWindow to item 1 of urlList
+    
+    -- Create new tabs for the remaining URLs
+    repeat with i from 2 to count of urlList
+        tell newWindow
+            make new tab with properties {"{URL:(item i of urlList)}"}
+        end tell
+    end repeat
+end tell
+"""
+
+    subprocess.call(['osascript', '-e', script])
+    return jsonify({ "message": "Success" })
+##D ----------------------------DEVELOP----------------------------
+
 ##G -----------------------------GLOBAL----------------------------
+@app.route('/api/grab-links', methods=['POST'])
+async def grab_links():
+    data = request.json
+    queries = data.get('queries')
+    if len(queries) == 0:
+        return jsonify({ "error": "Missing query parameter" })
+    videos = []
+    times = []
+    for query in queries:
+        start = time.time()
+        video = await search_yt(query)
+        videos.append(video[0])
+        times.append(time.time() - start)
+        estimated_time = round(sum(times) / len(times), 2)
+        logger.info(videos)
+        logger.debug(f"{queries.index(query) + 1}/{len(queries)} (\033[34m{estimated_time}s\033[0m) Got data for: \033[36m{query}\033[0m (\033[34m{round(time.time() - start, 2)}s\033[0m)")
+
+    print(videos)
+    return jsonify(videos)
+
+async def search_yt(query: str, max_results: int = 1):
+    try:
+        # build youtube service
+        youtube = build("youtube", "v3", developerKey=GOOGLE_API_KEY)
+
+        request = youtube.search().list(
+            q=query,
+            part='id,snippet',
+            maxResults=max_results,
+            type='video'  # Only return videos, not playlists or channels
+        )
+        
+        response = request.execute()
+        
+        # Extract relevant information from each search result 
+        videos = []
+        for item in response['items']:
+            video = {
+                'video_id': item['id']['videoId'],
+                'title': item['snippet']['title'],
+                'description': item['snippet']['description'],
+                'thumbnail': item['snippet']['thumbnails']['default']['url'],
+                'channel_title': item['snippet']['channelTitle'],
+                'published_at': item['snippet']['publishedAt']
+            }
+            videos.append(video)
+        
+        return videos
+    except HttpError as e:
+        logger.error(f'An HTTP error {e.resp.status} occurred: {e.content}')
+        logger.info(e.content)
+        return []
+    except Exception as e:
+        logger.error(f'An error occurred: {str(e)}')
+        return []
+
 def get_time(add: int = 0):
-    '''
-    # : add -> the time to add in seconds
-    '''
-    return round(time.time() * 1000) + add
+    return round(time.time() * 1000) + (add * 1000)
 
 def get_max_amount() -> int:
 	max_amount_str: Optional[str] = request.args.get('a')
@@ -594,25 +748,15 @@ def get_max_amount() -> int:
 	except ValueError:
 		return -1
 
-def format_namedtuple(songs):
-    return [
+def format_namedtuple(songs, first = False):
+    named = [
         {
             field: getattr(song, field)
             for field in song._fields
         }
         for song in songs
     ]
-
-def get_client_browser() -> str:
-    user_agent = request.headers.get('User-Agent')
-    if 'Chrome' in user_agent and 'Safari' in user_agent:
-        return 'Chrome'
-    elif 'Safari' in user_agent:
-        return 'Safari'
-    elif 'Firefox' in user_agent:
-        return 'Firefox'
-    else:
-        return 'Unknown'
+    return named[0] if first else named
 
 async def sql(query: str, params=None, fetch_results=False, fetch_success=False, max_retries=5):
     for attempt in range(max_retries):
@@ -660,290 +804,7 @@ async def sql(query: str, params=None, fetch_results=False, fetch_success=False,
     return False if fetch_success else None
 ##G -----------------------------GLOBAL----------------------------
 
-##S -----------------------------SETUP-----------------------------
-async def get_song_data(root: str, file: str):
-    name, _ = os.path.splitext(file)
-    full_path = os.path.join(root, file)
-    audio = File(full_path)
-    if audio is None:
-        logger.error(f"\033[31maudio is none: \033[0m{name}")
-        return None
-
-    # Extract metadata from file
-    track_id = audio.tags.get('TRACKNUMBER', [''])[0]
-    if track_id == "":
-        track_id = hashlib.sha256(str(name).encode()).hexdigest()[:8];
-    artist_name = audio.tags.get('ARTIST', [''])[0]
-    yt_link = audio.tags.get('YT_LINK', [''])[0]
-    birth_date = int(audio.tags.get('BIRTHDATE', [0])[0])
-    duration = audio.info.length
-
-    # Check if song exists in database
-    song = await sql("""
-        SELECT 
-            s.file_exists,
-            s.name,
-            s.birth_date,
-            s.duration,
-            s.added,
-            s.rel_path,
-            s.track_id,
-            s.yt_link,
-            sd.artist_track_id,
-            sd.album,
-            sd.genre,
-            sd.tags,
-            sd.listen_time_seconds,
-            sd.last_played,
-            a.name as artist_name
-        FROM songs s
-        LEFT JOIN songs_data sd ON sd.track_id = s.track_id
-        LEFT JOIN artists a ON a.artist_track_id = sd.artist_track_id
-        WHERE s.name = ? AND s.track_id = ?
-    """, [name, track_id], fetch_results=True)
-    song = song[0] if song else None
-
-    relative_path = os.path.relpath(full_path, MUSIC_DIR)
-    
-    song_data = {
-        "name": name,
-        "file_exists": 1,
-        "artist_track_id": song.artist_track_id if song else "",
-        "artist_name": artist_name or (song.artist_name if song else ""),
-        "album": audio.tags.get('ALBUM', [''])[0] or (song.album if song else ""),
-        "genre": audio.tags.get('GENRE', [''])[0] or (song.genre if song else ""),
-        "tags": song.tags if song else "",
-        "birth_date": birth_date or (song.birth_date if song else 0),
-        "duration": duration or (song.duration if song else 0),
-        "listen_time_seconds": song.listen_time_seconds if song else 0,
-        "added": song.added if song else get_time(),
-        "track_id": track_id,
-        "last_played": song.last_played if song else None,
-        "path": (song.rel_path if song else relative_path),
-        "yt_link": yt_link or (song.yt_link if song else ""),
-    }
-
-    return song_data
-
-async def sync_songs_with_db(songs):
-    artist_list = await sql('SELECT * FROM artists', fetch_results=True)
-    artists = { artist.name: artist.artist_track_id for artist in artist_list }
-    track_ids = [artist.artist_track_id for artist in artist_list]
-    
-    async def insert_song(song):
-        if await sql("SELECT 1 FROM songs s INNER JOIN songs_data sd ON sd.track_id = s.track_id WHERE s.name = ? AND s.track_id = ?", [song["name"], song["track_id"]], fetch_success=True):
-            return False
-        
-        artist_name = song["artist_name"]
-        if artist_name and artist_name not in artists:
-            count = 0
-            artist_track_id = hashlib.sha256(str(artist_name).encode()).hexdigest()[count:count+8]
-            while artist_track_id in track_ids:
-                count += 1
-                old_id = artist_track_id
-                artist_track_id = hashlib.sha256(str(artist_name).encode()).hexdigest()[count:count+8]
-                logger.debug(f"\033[34m{artist_name}\033[0m track_id found and changed: \033[31m{old_id}\033[0m -> \033[32m{artist_track_id}\033[0m")
-
-            await sql('INSERT or IGNORE INTO artists (name, artist_track_id) VALUES (?,?)', [artist_name, artist_track_id])
-            logger.debug(f"Created new \033[34mArtist\033[0m: \033[36m{artist_name}\033[0m - \033[32m{artist_track_id}\033[0m")
-            artists[artist_name] = artist_track_id
-            track_ids.append(artist_track_id)
-        else:
-            artist_track_id = artists.get(artist_name, "00000000")
-
-        song_data = [
-            song["name"], 1, artist_track_id, artist_name, song.get("album"), song.get("genre"),
-            song["birth_date"], song["duration"], 0, get_time(), song["track_id"], None,
-            song["path"], song["yt_link"]
-        ]
-
-        try:
-            await sql("""
-                INSERT or IGNORE INTO songs
-                (name, file_exists, o_artist_name, birth_date, duration, added, rel_path, track_id, yt_link)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, [song["name"], 1, artist_name, song["birth_date"], song["duration"], get_time(), song["path"], song["track_id"], song["yt_link"]])
-            await sql("""
-                INSERT INTO songs_data
-                (name, artist_track_id, album, genre, listen_time_seconds, last_played, track_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                """, [song["name"], artist_track_id, song.get("album"), song.get("genre"), 0, 0, song["track_id"]])
-            logger.debug(f"Created new \033[33mSong\033[0m: \033[35m{song_data[0]}\033[0m")
-        except Exception as e:
-            logger.error(f"Error inserting song: {e}")
-            return False
-        return True
-
-    tasks = [insert_song(song) for song in songs]
-    results = await asyncio.gather(*tasks)
-    
-    inserted_count = sum(results)
-    logger.debug(f"Inserted \033[32m{inserted_count}\033[0m new songs out of \033[35m{len(songs)}\033[0m total songs.")
-
-async def sync_all_songs_with_db():
-    logger.debug("Start syncing DB with files")
-    await sql("UPDATE songs SET file_exists = 0")
-
-    opus_files = []
-    for root, _, files in os.walk(MUSIC_DIR):
-        opus_files.extend([os.path.join(root, file) for file in files if file.endswith('.opus') and not file.startswith(".")])
-
-    batch_size = 100
-    all_songs = []
-    track_ids_to_update = set()
-
-    for i in range(0, len(opus_files), batch_size):
-        batch = opus_files[i:i+batch_size]
-        song_data_coros = [get_song_data(os.path.dirname(file), os.path.basename(file)) for file in batch]
-        songs = await asyncio.gather(*song_data_coros)
-        
-        all_songs.extend([song for song in songs if song is not None])
-        track_ids_to_update.update(song['track_id'] for song in songs if song is not None)
-        
-        if len(all_songs) >= batch_size:
-            await sync_songs_with_db(all_songs)
-            all_songs = []
-    
-    if all_songs:
-        await sync_songs_with_db(all_songs)
-
-    if track_ids_to_update:
-        placeholders = ','.join('?' * len(track_ids_to_update))
-        query = f"UPDATE songs SET file_exists = 1 WHERE track_id IN ({placeholders})"
-        await sql(query, list(track_ids_to_update))
-
-    logger.debug(f"Processed \033[32m{len(opus_files)}\033[0m files")
-
-async def init_db():
-    logger.debug("Initializing db")
-    try:
-        # Create songs table
-        await sql("""
-        CREATE TABLE IF NOT EXISTS songs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            file_exists INTEGER DEFAULT 1,
-            o_artist_name TEXT,
-            birth_date INTEGER,
-            duration INTEGER,
-            added INTEGER,
-            rel_path TEXT,
-            track_id TEXT UNIQUE,
-            yt_link TEXT
-        );
-        """)
-        
-        # Create songs_data table
-        await sql("""
-        CREATE TABLE IF NOT EXISTS songs_data (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            artist_track_id TEXT,
-            album TEXT,
-            genre TEXT,
-            tags TEXT,
-            listen_time_seconds INTEGER DEFAULT 0,
-            last_played INTEGER DEFAULT 0,
-            track_id TEXT UNIQUE,
-            img_url TEXT,
-            FOREIGN KEY (artist_track_id) REFERENCES artists(artist_track_id),
-            FOREIGN KEY (track_id) REFERENCES songs(track_id)
-        );
-        """)
-        
-        # Create artists table
-        await sql("""
-        CREATE TABLE IF NOT EXISTS artists (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            artist_track_id TEXT UNIQUE NOT NULL
-        );
-        """)
-
-        # Create user table
-        await sql("""
-        CREATE TABLE IF NOT EXISTS user (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE NOT NULL,
-            email TEXT UNIQUE NOT NULL,
-            password TEXT NOT NULL,
-            created_at INTEGER, -- in ms
-            last_login INTEGER,
-            img_url TEXT,
-            verified INTEGER DEFAULT 0,
-            verify_email_code TEXT,
-            code_expiry INTEGER
-        );
-        """)
-
-        # sessions for users
-        await sql("""
-        CREATE TABLE IF NOT EXISTS user_sessions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            session_token TEXT NOT NULL,
-            expiry INTEGER NOT NULL,
-            FOREIGN KEY (user_id) REFERENCES user(id) 
-        );
-        """)
-
-        # Create user_song_data table
-        await sql("""
-        CREATE TABLE IF NOT EXISTS user_song_data (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            track_id TEXT NOT NULL,
-            listen_time_seconds INTEGER DEFAULT 0,
-            favorite INTEGER DEFAULT 0,
-            rating INTEGER DEFAULT 0 CHECK (rating >= 0 AND rating <= 5),
-            last_played INTEGER,
-            skip_count INTEGER DEFAULT 0,
-            first_played INTEGER,
-            added_to_library INTEGER DEFAULT 0,
-            FOREIGN KEY (user_id) REFERENCES user(id),
-            FOREIGN KEY (track_id) REFERENCES songs(track_id),
-            UNIQUE (user_id, track_id)
-        );
-        """)
-
-        # Create user_song_history table
-        await sql("""
-        CREATE TABLE IF NOT EXISTS user_song_history (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            track_id TEXT NOT NULL,
-            skipped_count INTEGER DEFAULT 0,
-            listen_time_seconds INTEGER DEFAULT 0,
-            date INTEGER NOT NULL,
-            FOREIGN KEY (user_id) REFERENCES user(id),
-            FOREIGN KEY (track_id) REFERENCES songs(track_id)
-        );
-        """)
-
-        await sql("CREATE INDEX IF NOT EXISTS idx_songs_track_id ON songs(track_id);")
-        await sql("CREATE INDEX IF NOT EXISTS idx_songs_data_track_id ON songs_data(track_id);")
-        await sql("CREATE INDEX IF NOT EXISTS idx_artists_artist_track_id ON artists(artist_track_id);")
-        await sql("CREATE INDEX IF NOT EXISTS idx_user_sessions_user_id ON user_sessions(user_id);")
-        await sql("CREATE INDEX IF NOT EXISTS idx_user_sessions_session_token ON user_sessions(session_token);")
-        await sql("CREATE INDEX IF NOT EXISTS idx_user_song_data_user_id ON user_song_data(user_id);")
-        await sql("CREATE INDEX IF NOT EXISTS idx_user_song_data_track_id ON user_song_data(track_id);")
-        await sql("CREATE INDEX IF NOT EXISTS idx_user_song_history_user_id ON user_song_history(user_id);")
-        await sql("CREATE INDEX IF NOT EXISTS idx_user_song_history_track_id ON user_song_history(track_id);")
-        await sql("CREATE INDEX IF NOT EXISTS idx_user_song_history_date ON user_song_history(date);")
-        
-        logger.debug("Database initialization completed successfully")
-    except Exception as e:
-        logger.error(f"Error initializing database: {e}")
-        raise
-##S -----------------------------SETUP-----------------------------
-
-##M -----------------------------MAIN------------------------------
-async def main():
-    await init_db()
-    await sync_all_songs_with_db()
-
-if __name__ == '__main__':
-    asyncio.run(main())
+if __name__ == '__main__':    
     try:
         app.run(
             host='192.168.7.146',
@@ -953,4 +814,3 @@ if __name__ == '__main__':
         )
     finally:
         logger.debug("Bye...")
-##M -----------------------------MAIN------------------------------
