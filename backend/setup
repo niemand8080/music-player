@@ -236,6 +236,7 @@ CREATE TABLE IF NOT EXISTS user_session_data (
   json TEXT NOT NULL,
   session_token TEXT NOT NULL,
   FOREIGN KEY (session_token) REFERENCES user_sessions(session_token)
+  UNIQUE (name, session_token)
 );
 "
 
