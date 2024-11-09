@@ -38,7 +38,7 @@ export const UserAvatar = () => {
       <DropdownMenu>
         <DropdownMenuTrigger>
           <Avatar>
-            <AvatarImage src="" />
+            <AvatarImage src={user.img_url} />
             <AvatarFallback>{user?.fallback}</AvatarFallback>
           </Avatar>
         </DropdownMenuTrigger>

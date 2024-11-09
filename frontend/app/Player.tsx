@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Ellipsis } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useUser } from "@/components/provider/user-provider";
-import Image from "next/image";
+import { BlurImg } from "@/components/my-ui/blur-img";
 
 export const Player = () => {
   const pathname = usePathname();
@@ -38,11 +38,11 @@ export const SongDisplay: React.FC<{ song: SongType | undefined }> = ({ song }) 
   )
   return (
     <div className="w-96 h-full rounded-md flex gap-2">
-      <Image
+      <BlurImg 
         src={song.img_url || "https://niemand8080.de/db/images/Super%20Mario%20World%20Game%20Over%20LoFi%20Hip%20Hop%20Remix.png"}
         alt="Song Cover"
-        width={48}
-        height={48}
+        size={48}
+        className="rounded-md"
       />
       <div className="flex flex-col h-12 justify-center">
         <h1 className="truncate w-64 font-bold">{song.name}</h1>
