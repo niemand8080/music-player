@@ -193,3 +193,10 @@ export const api = async (
     return false
   }
 };
+
+// sendBeacon
+export const sendBeacon = (path: string, data: { [key: string]: any }) => {
+  const json = JSON.stringify(data);
+  const blob = new Blob([json], { type: "application/json" });
+  navigator.sendBeacon(process.env.NEXT_PUBLIC_API_URL + path, blob);
+}

@@ -74,14 +74,6 @@ const Page = () => {
       <div className="rounded-lg overflow-clip border">
         <canvas ref={canvasRef} width={width} height={height} className="bg-background"></canvas>
       </div>
-      <div className="flex flex-col">
-        <span>Sub-bass: {(freqData && freqData[0]) || ""}</span>
-        <span>Bass: {(freqData && freqData[11]) || ""}</span>
-        <span>Low-mids: {(freqData && freqData[36]) || ""}</span>
-        <span>Mids: {(freqData && freqData[101]) || ""}</span>
-        <span>High-mids: {(freqData && freqData[301]) || ""}</span>
-        <span>Highs/Treble: {(freqData && freqData[701]) || ""}</span>
-      </div>
     </div>
   );
 };

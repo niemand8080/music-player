@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import json
 import math
 import os
 import subprocess
@@ -130,7 +131,7 @@ async def get_songs():
     token = request.cookies.get('session_token')
     max_amount = request.args.get('a')
 
-    if max_amount.isdigit():
+    if max_amount is not None and max_amount.isdigit():
         max_amount = int(max_amount)
     else:
         max_amount = -1
@@ -182,10 +183,6 @@ async def play_song():
 ##M -----------------------------MUSIC-----------------------------
 
 ##D --------------------------USER MUSIC---------------------------
-@app.route('/api/get_session_data', methods=['POST'])
-async def get_session_data():
-    return jsonify()
-
 @app.route('/api/uusd', methods=['POST'])
 async def uusd():
     data = request.json
@@ -292,7 +289,7 @@ async def get_songs(token: str, max_amount = -1):
                 LEFT JOIN songs_data sd ON sd.track_id = s.track_id
                 LEFT JOIN artists a ON a.artist_id = sd.artist_id
                 ORDER BY RANDOM()
-                LIMIT
+                LIMIT ?
             """, [max_amount], fetch_results=True)
     return songs
 
@@ -362,6 +359,47 @@ async def get_song(track_id: str, token: str):
 
 ##U -----------------------------USER------------------------------
 # TODO user_song_history implementation
+# user session data
+@app.route('/api/set_session_data', methods=['POST'])
+async def set_session_data():
+    token = request.cookies.get('session_token')
+    name = request.json.get('name')
+    data = request.json.get('data')
+    
+    if token is None:
+        return jsonify({ "error": "Unauthorized" })
+    
+    if name is None or data is None:
+        return jsonify({ "error": "Missing data" })
+    
+    db_call = await sql("""
+        INSERT OR REPLACE INTO user_session_data
+        (name, data, session_token)
+        VALUES (?, ?, ?)
+    """, [name, json.dumps(data), token], fetch_success=True)
+        
+    if db_call:
+        return jsonify({ "message": "Successfully saved data" })
+    else:
+        return jsonify({ "message": "Something went wrong" })
+
+@app.route('/api/get_session_data', methods=['POST'])
+async def get_session_data():
+    token = request.cookies.get('session_token')
+    
+    if token is None:
+        return jsonify({ "error": "Unauthorized" })
+    
+    session_data = await sql("SELECT * FROM user_session_data WHERE session_token = ?", [token], fetch_results=True)
+    data = {}
+
+    for sd in session_data:
+        sd = format_namedtuple([sd], first=True)
+        data[sd['name']] = json.loads(sd['data'])
+
+    return jsonify(data)
+
+# authorizing
 @app.route('/api/taken', methods=['POST'])
 async def is_taken():
     data = request.json
@@ -467,6 +505,7 @@ async def send_new_code():
     send_code = await send_new_verify_code(email)
     return jsonify(send_code)
 
+# user data
 @app.route('/api/user_data', methods=['POST'])
 async def user_data():
     token = request.cookies.get('session_token')

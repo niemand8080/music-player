@@ -202,13 +202,13 @@ export const logOut = async () => {
     );
 
     toast({
-      title: "Successfully loged out",
+      title: "Successfully logged out",
       description: "You can now change account",
     });
   } catch (error) {
     console.error("Error: " + error);
     toast({
-      title: "Oops, an error occured",
+      title: "Oops, an error occurred",
       description: "Try again later...",
     });
   }

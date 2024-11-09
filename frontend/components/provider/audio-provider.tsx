@@ -8,7 +8,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { api, SongType } from "@/lib/utils";
+import { api, sendBeacon, SongType } from "@/lib/utils";
 
 interface AudioContextType {
   // Audio Element / Nodes
@@ -48,32 +48,34 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
   const audioRef = useRef<HTMLMediaElement | null>(null);
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
   const [gain, setGain] = useState<GainNode | null>(null);
-  const [source, setSource] = useState<MediaElementAudioSourceNode | null>(null);
+  const [source, setSource] = useState<MediaElementAudioSourceNode | null>(
+    null
+  );
   // Audio States
   const [isPlaying, setIsPlaying] = useState<boolean>(true);
   const [playInfinity, setPlayInfinity] = useState<boolean>(true);
-  // Songs
+  // Songs / Session Data
   const [nextSongs, setNextSongs] = useState<SongType[]>([]);
   const [currentSong, setCurrentSong] = useState<SongType>();
   const [songHistory, setSongHistory] = useState<SongType[]>([]);
+  const [triedLoadingSessionData, setTriedLoadingSessionData] =
+    useState<boolean>(false);
+  const [currentTime, setCurrentTime] = useState<number>();
 
   const audioEnded = useCallback(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
-    if (playInfinity) {
-      audio.src = "https://192.168.7.146:8000/api/play";
-    } else {
-
-    }
+    playNext();
     audio.play();
-  }, [playInfinity])
+  }, [playInfinity]);
 
+  // Audio
   useEffect(() => {
     audioRef.current = new Audio();
     const audio = audioRef.current;
-    
-    audio.crossOrigin = "anonymous"
+
+    audio.crossOrigin = "anonymous";
 
     // Create audioContext
     const actx = new window.AudioContext();
@@ -85,15 +87,18 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
     const analyserNode = new AnalyserNode(actx, { fftSize: 2048 });
 
     // Connect source -> analyser -> gain -> destination (output)
-    sourceNode.connect(analyserNode).connect(gainNode).connect(actx.destination);
+    sourceNode
+      .connect(analyserNode)
+      .connect(gainNode)
+      .connect(actx.destination);
 
     setAnalyser(analyserNode);
     setGain(gainNode);
     setSource(sourceNode);
-    
+
     audio.addEventListener("ended", audioEnded);
 
-    playNext();
+    loadSessionData();
 
     return () => {
       audio.pause();
@@ -110,6 +115,16 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
     else audio.play();
   }, [isPlaying, pathname]);
 
+  // After trying to load session data
+  useEffect(() => {
+    if (!triedLoadingSessionData) return;
+    if (!currentSong || !nextSongs) {
+      playNext();
+    } else if (audioRef.current && currentTime) {
+      audioRef.current.currentTime = currentTime;
+    }
+  }, [triedLoadingSessionData]);
+
   // Handle currentSong
   useEffect(() => {
     const audio = audioRef.current;
@@ -118,13 +133,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
     audio.pause();
     audio.src = `https://192.168.7.146:8000/api/play?t=${currentSong.track_id}`;
     if (wasPlaying) audio.play();
+    api("/set_session_data", "POST", { name: "currentTime", data: 0 });
   }, [currentSong]);
-
-  useEffect(() => {
-    console.log("nextSongs: ", nextSongs);
-    console.log("currentSong: ", currentSong);
-    console.log("songHistory: ", songHistory);
-  }, [songHistory, currentSong, nextSongs]);
 
   // API
   const getSongs = async (amount: number) => {
@@ -133,21 +143,76 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
     else return data;
   };
 
+  // session data
+  useEffect(() => {
+    if (!triedLoadingSessionData) return;
+    console.log("nextSongs: ", nextSongs);
+    console.log("currentSong: ", currentSong);
+    console.log("songHistory: ", songHistory);
+
+    updateSessionData();
+  }, [songHistory, currentSong, nextSongs]);
+
+  useEffect(() => {
+    window.addEventListener("beforeunload", updateCurrentTimeData);
+
+    return () => {
+      window.removeEventListener("beforeunload", updateCurrentTimeData);
+    };
+  }, []);
+
+  const updateCurrentTimeData = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    sendBeacon("/set_session_data", {
+      name: "currentTime",
+      data: audio.currentTime,
+    });
+  };
+
+  const updateSessionData = async () => {
+    await api("/set_session_data", "POST", {
+      name: "nextSongs",
+      data: nextSongs,
+    });
+    await api("/set_session_data", "POST", {
+      name: "currentSong",
+      data: currentSong,
+    });
+    await api("/set_session_data", "POST", {
+      name: "songHistory",
+      data: songHistory,
+    });
+  };
+
+  const loadSessionData = async () => {
+    const { currentSong, nextSongs, songHistory, currentTime } = await api(
+      "/get_session_data",
+      "POST"
+    );
+    if (nextSongs) setNextSongs(nextSongs);
+    if (currentSong) setCurrentSong(currentSong);
+    if (songHistory) setSongHistory(songHistory);
+    setCurrentTime(Number(currentTime));
+
+    setTriedLoadingSessionData(true);
+  };
+
   // Audio Controls
-  const togglePlayInfinity = () => setPlayInfinity((prev) => !prev)
-  const togglePlayPause = () => setIsPlaying((prev) => !prev)
+  const togglePlayInfinity = () => setPlayInfinity((prev) => !prev);
+  const togglePlayPause = () => setIsPlaying((prev) => !prev);
 
   // Plays the next song from the nextSong list
   const playNext = async () => {
-    console.log((nextSongs.length == 0 || !currentSong) && !playInfinity);
     if ((nextSongs.length == 0 || !currentSong) && !playInfinity) return;
-    
-    if (currentSong) setSongHistory(prev => [currentSong, ...prev]);
-    
-    if (playInfinity) {
-      const amount = 2 - nextSongs.length;
-      if (amount <= 0) return;
-      const [next, ...remaining] = [...nextSongs, ...await getSongs(amount)];
+
+    if (currentSong) setSongHistory((prev) => [currentSong, ...prev]);
+
+    const amount = 2 - nextSongs.length;
+
+    if (playInfinity && amount > 0) {
+      const [next, ...remaining] = [...nextSongs, ...(await getSongs(amount))];
       setCurrentSong(next);
       setNextSongs(remaining);
     } else {
@@ -156,17 +221,17 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
       setCurrentSong(next);
       setNextSongs(remaining);
     }
-  }
-  
+  };
+
   // Plays the last song from the songHistory list
   const playLast = () => {
     if (songHistory.length == 0 || !currentSong) return;
     const [last, ...remaining] = songHistory;
 
-    setNextSongs(prev => [currentSong, ...prev]);
+    setNextSongs((prev) => [currentSong, ...prev]);
     setCurrentSong(last);
     setSongHistory(remaining);
-  }
+  };
 
   return (
     <AudioContext.Provider
