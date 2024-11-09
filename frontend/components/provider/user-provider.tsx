@@ -18,7 +18,7 @@ export type UserType = {
 
 interface UserContextType {
   user: UserType | undefined;
-  triedAuth: boolean;
+  authorized: boolean | undefined;
   logOut: () => void;
   updatedUSD: (track_id: string, change: USDType, to: string | number | boolean) => Promise<boolean>;
 }
@@ -38,8 +38,8 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
   const router = useRouter();
   const pathname = usePathname();
   const [user, setUser] = useState<UserType>();
+  const [authorized, setAuthorized] = useState<boolean>(false);
   const [sentWelcome, setSentWelcome] = useState<boolean>(true);
-  const [triedAuth, setTriedAuth] = useState<boolean>(false);
 
   useEffect(() => {
     const getUser = async () => {
@@ -61,8 +61,9 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
             id: user.id,
           };
           setUser(newUser);
+          setAuthorized(true);
         } else {
-          setTriedAuth(true)
+          setAuthorized(false);
         }
         if (typeof window == "undefined") return;
         const lastWelcome = Number(
@@ -82,7 +83,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   useEffect(() => {
-    if (user) setTriedAuth(true);
+    if (user) setAuthorized(true);
   }, [user]);
 
   useEffect(() => {
@@ -146,7 +147,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
     <UserContext.Provider
       value={{
         user,
-        triedAuth,
+        authorized,
         logOut,
         updatedUSD
       }}

@@ -35,7 +35,7 @@ const labels: DataTableExtraDataType[] = [
 ];
 
 export default function Page() {
-  const { user, triedAuth } = useUser();
+  const { user, authorized } = useUser();
   const [data, setData] = useState([]);
 
   const getData = async () => {
@@ -47,7 +47,7 @@ export default function Page() {
     getData();
   }, [user]);
 
-  if (!triedAuth) return;
+  if (authorized == undefined) return;
 
   return (
     <div className="flex h-full justify-center gap-5 max-w-[100vw] border">

@@ -236,7 +236,7 @@ interface DataTableColumnHeaderProps<TData, TValue>
   textRight?: boolean;
   children?: React.ReactNode;
   hidden?: boolean;
-  authorized?: boolean;
+  authorizedCon?: boolean;
 }
 
 export function DataTableColumnHeader<TData, TValue>({
@@ -246,16 +246,16 @@ export function DataTableColumnHeader<TData, TValue>({
   textRight = false,
   children,
   hidden,
-  authorized,
+  authorizedCon,
 }: DataTableColumnHeaderProps<TData, TValue>) {
-  const { user, triedAuth } = useUser();
+  const { user, authorized } = useUser();
   if (hidden) column.toggleVisibility(false);
   
   useEffect(() => {
-    if (!triedAuth) return;
-    if (!user && authorized) column.toggleVisibility(false);
+    if (authorized == undefined) return;
+    if (!user && authorizedCon) column.toggleVisibility(false);
     else column.toggleVisibility(true);
-  }, [user, column, authorized, triedAuth]);
+  }, [user, column, authorizedCon, authorized]);
   
   if (!column.getCanSort()) {
     return <div className={cn(className)}>{title}</div>;

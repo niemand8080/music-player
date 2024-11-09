@@ -17,7 +17,7 @@ interface AudioContextType {
   gain: GainNode | null;
   source: MediaElementAudioSourceNode | null;
   // Audio State
-  playInfinity: boolean;
+  playRandom: boolean;
   isPlaying: boolean;
   // Songs
   nextSongs: SongType[];
@@ -25,7 +25,7 @@ interface AudioContextType {
   songHistory: SongType[];
   // Audio Controls
   togglePlayPause: () => void;
-  togglePlayInfinity: () => void;
+  togglePlayRandom: () => void;
   playNext: () => void;
   playLast: () => void;
 }
@@ -52,8 +52,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
     null
   );
   // Audio States
-  const [isPlaying, setIsPlaying] = useState<boolean>(true);
-  const [playInfinity, setPlayInfinity] = useState<boolean>(true);
+  const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  const [playRandom, setPlayRandom] = useState<boolean>(true);
   // Songs / Session Data
   const [nextSongs, setNextSongs] = useState<SongType[]>([]);
   const [currentSong, setCurrentSong] = useState<SongType>();
@@ -68,7 +68,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
 
     playNext();
     audio.play();
-  }, [playInfinity]);
+  }, [playRandom]);
 
   // Audio
   useEffect(() => {
@@ -200,18 +200,18 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   // Audio Controls
-  const togglePlayInfinity = () => setPlayInfinity((prev) => !prev);
+  const togglePlayRandom = () => setPlayRandom((prev) => !prev);
   const togglePlayPause = () => setIsPlaying((prev) => !prev);
 
   // Plays the next song from the nextSong list
   const playNext = async () => {
-    if ((nextSongs.length == 0 || !currentSong) && !playInfinity) return;
+    if ((nextSongs.length == 0 || !currentSong) && !playRandom) return;
 
     if (currentSong) setSongHistory((prev) => [currentSong, ...prev]);
 
     const amount = 2 - nextSongs.length;
 
-    if (playInfinity && amount > 0) {
+    if (playRandom && amount > 0) {
       const [next, ...remaining] = [...nextSongs, ...(await getSongs(amount))];
       setCurrentSong(next);
       setNextSongs(remaining);
@@ -242,7 +242,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
         gain,
         source,
         // Audio State
-        playInfinity,
+        playRandom,
         isPlaying,
         // Songs
         nextSongs,
@@ -250,7 +250,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
         songHistory,
         // Audio Controls
         togglePlayPause,
-        togglePlayInfinity,
+        togglePlayRandom,
         playNext,
         playLast,
       }}

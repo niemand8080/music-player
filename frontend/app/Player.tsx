@@ -3,29 +3,82 @@ import React, { useState } from "react";
 import { Play, Pause } from "lucide-react";
 import { useAudio } from "@/components/provider/audio-provider";
 import { usePathname } from "next/navigation";
-import { getPageSetting } from "@/lib/utils";
+import { getPageSetting, SongType } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Ellipsis } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { useUser } from "@/components/provider/user-provider";
+import Image from "next/image";
 
 export const Player = () => {
   const pathname = usePathname();
+  const { currentSong } = useAudio();
   if (getPageSetting(pathname, 'playerHidden')) return null;
   return (
     <>
-      <div className="max-w-[100vw] w-screen fixed bottom-0 left-0 border-t h-16 py-2 flex px-5 justify-between items-center z-10 backdrop-blur-sm">
-        <div></div>
-        <PlayButtons />
-        <div></div>
+      <div className="max-w-[100vw] w-screen fixed bottom-0 left-0 border-t h-[65px] z-10 backdrop-blur-sm">
+        <div className="flex items-center justify-between p-2 mx-auto max-w-[104rem]">
+          <SongDisplay song={currentSong} />
+          <PlayButtons />
+        </div>
       </div>
     </>
   );
 };
 
+export const SongDisplay: React.FC<{ song: SongType | undefined }> = ({ song }) => {
+  if (!song) return (
+    <div className="w-96 h-full rounded-md flex gap-2">
+      <Skeleton className="w-12 h-12 rounded-md" />
+      <div className="gap-2 flex flex-col h-12 justify-center">
+        <Skeleton className="h-4 w-64" />
+        <Skeleton className="h-4 w-44" />
+      </div>
+    </div>
+  )
+  return (
+    <div className="w-96 h-full rounded-md flex gap-2">
+      <Image
+        src={song.img_url || "https://niemand8080.de/db/images/Super%20Mario%20World%20Game%20Over%20LoFi%20Hip%20Hop%20Remix.png"}
+        alt="Song Cover"
+        width={48}
+        height={48}
+      />
+      <div className="flex flex-col h-12 justify-center">
+        <h1 className="truncate w-64 font-bold">{song.name}</h1>
+        <h2 className="truncate w-64 text-secondary-foreground">{song.artist_name}</h2>
+      </div>
+      <SongOptions song={song} />
+    </div>
+  )
+};
+
+export const SongOptions: React.FC<{ song: SongType }> = ({ song }) => {
+  const { user } = useUser();
+
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger className="rounded-full my-auto">
+          <Ellipsis size={24} className="rounded-full hover:text-primary transition-all duration-300 hover:bg-primary/10 p-0.5" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <DropdownMenuItem disabled={user != undefined} onClick={() => alert("added")}>
+            Add to Library
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </>
+  )
+}
+
 export const PlayButtons: React.FC = () => {
-  const { isPlaying, togglePlayPause, playNext, playLast, nextSongs, songHistory, playInfinity } = useAudio();
+  const { isPlaying, togglePlayPause, playNext, playLast, nextSongs, songHistory, playRandom } = useAudio();
   const [countRight, setCountRight] = useState<number>(0);
   const [countLeft, setCountLeft] = useState<number>(0);
   const [last, setLast] = useState<number>(0);
   return (
-    <div className="flex gap-10">
+    <div className="flex gap-5 md:gap-7 mr-10">
       {/* Play Last */}
       <button
         disabled={songHistory.length == 0}
@@ -37,7 +90,7 @@ export const PlayButtons: React.FC = () => {
           setCountLeft((prev) => prev + 1);
           setTimeout(() => setCountLeft((prev) => prev + 1), 100);
         }}
-        className="group relative flex items-center hover:text-primary rotate-180 disabled:text-secondary"
+        className="group relative hidden sm:flex items-center hover:text-primary rotate-180 disabled:text-secondary"
       >
         <Play
           size={20}
@@ -100,7 +153,7 @@ export const PlayButtons: React.FC = () => {
 
       {/* Play Next */}
       <button
-        disabled={nextSongs.length == 0 && !playInfinity}
+        disabled={nextSongs.length == 0 && !playRandom}
         onClick={() => {
           playNext();
           const now = new Date().getTime();

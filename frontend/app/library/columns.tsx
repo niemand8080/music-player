@@ -171,7 +171,7 @@ export const columns: ColumnDef<SongType>[] = [
     accessorKey: "favorite",
     header: ({ column }) => {
       return (
-        <DataTableColumnHeader column={column} title="" authorized>
+        <DataTableColumnHeader column={column} title="" authorizedCon>
           <Star size={16} className="text-primary" />
         </DataTableColumnHeader>
       );
@@ -186,7 +186,7 @@ export const columns: ColumnDef<SongType>[] = [
     accessorKey: "rating",
     header: ({ column }) => {
       return (
-        <DataTableColumnHeader column={column} title="Rating" authorized />
+        <DataTableColumnHeader column={column} title="Rating" authorizedCon />
       );
     },
     cell: ({ row }) => {
@@ -199,7 +199,7 @@ export const columns: ColumnDef<SongType>[] = [
     accessorKey: "i_last_played",
     header: ({ column }) => {
       return (
-        <DataTableColumnHeader column={column} title="I Played" authorized />
+        <DataTableColumnHeader column={column} title="I Played" authorizedCon />
       );
     },
     cell: ({ row }) => {
@@ -243,7 +243,7 @@ export const columns: ColumnDef<SongType>[] = [
         <DataTableColumnHeader
           column={column}
           title="My Listen Time"
-          authorized
+          authorizedCon
         />
       );
     },
