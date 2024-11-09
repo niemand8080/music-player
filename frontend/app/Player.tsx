@@ -9,6 +9,7 @@ import { Ellipsis } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useUser } from "@/components/provider/user-provider";
 import { BlurImg } from "@/components/my-ui/blur-img";
+import { useSongAction } from "@/components/provider/song-action-provider";
 
 export const Player = () => {
   const pathname = usePathname();
@@ -55,6 +56,7 @@ export const SongDisplay: React.FC<{ song: SongType | undefined }> = ({ song }) 
 
 export const SongOptions: React.FC<{ song: SongType }> = ({ song }) => {
   const { user } = useUser();
+  const { toggleLibrary } = useSongAction();
 
   return (
     <>
@@ -63,7 +65,7 @@ export const SongOptions: React.FC<{ song: SongType }> = ({ song }) => {
           <Ellipsis size={24} className="rounded-full hover:text-primary transition-all duration-300 hover:bg-primary/10 p-0.5" />
         </DropdownMenuTrigger>
         <DropdownMenuContent>
-          <DropdownMenuItem disabled={user != undefined} onClick={() => alert("added")}>
+          <DropdownMenuItem disabled={user == undefined} onClick={() => toggleLibrary(song)}>
             Add to Library
           </DropdownMenuItem>
         </DropdownMenuContent>

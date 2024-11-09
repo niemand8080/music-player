@@ -13,7 +13,8 @@ interface BlurImgProps {
 export const BlurImg: React.FC<BlurImgProps> = ({ src, alt, size, height = 100, width = 100, className }) => {
   const finalWidth = size || width;
   const finalHeight = size || height;
-  
+  const blur = Math.max(4, Math.min(24, 0.0267 * (size || width) + 2.667));
+
   return (
     <div 
       className="relative"
@@ -22,13 +23,15 @@ export const BlurImg: React.FC<BlurImgProps> = ({ src, alt, size, height = 100, 
         height: `${finalHeight}px` 
       }}
     >
-      <img
+      <Image
         src={src}
-        className="absolute blur-sm shadow-inner"
+        alt={"Blur: " + alt}
+        className="absolute shadow-inner"
+        width={finalHeight / 3}
+        height={finalHeight / 3}
         style={{ 
-          height: `${finalHeight/3}px`,
-          width: `${finalWidth/3}px`,
-          transform: `translate(100%, 100%) scale(${Math.max(Math.min(3), 1)})`
+          filter: `blur(${blur}px)`,
+          transform: `translate(100%, 100%) scale(${3})`
         }}
       />
       <Image

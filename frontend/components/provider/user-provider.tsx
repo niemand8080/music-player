@@ -20,7 +20,6 @@ interface UserContextType {
   user: UserType | undefined;
   authorized: boolean | undefined;
   logOut: () => void;
-  updatedUSD: (track_id: string, change: USDType, to: string | number | boolean) => Promise<boolean>;
 }
 
 const banedWelcomePages = [
@@ -38,7 +37,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
   const router = useRouter();
   const pathname = usePathname();
   const [user, setUser] = useState<UserType>();
-  const [authorized, setAuthorized] = useState<boolean>(false);
+  const [authorized, setAuthorized] = useState<boolean>();
   const [sentWelcome, setSentWelcome] = useState<boolean>(true);
 
   useEffect(() => {
@@ -61,9 +60,6 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
             id: user.id,
           };
           setUser(newUser);
-          setAuthorized(true);
-        } else {
-          setAuthorized(false);
         }
         if (typeof window == "undefined") return;
         const lastWelcome = Number(
@@ -84,6 +80,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
 
   useEffect(() => {
     if (user) setAuthorized(true);
+    else setAuthorized(false);
   }, [user]);
 
   useEffect(() => {
@@ -149,7 +146,6 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
         user,
         authorized,
         logOut,
-        updatedUSD
       }}
     >
       {children}
@@ -165,32 +161,6 @@ const getAvatarFallback = (username: string): string => {
     );
   return username.slice(0, 1).toUpperCase();
 };
-
-type USDType = "last_played" | "listen_time_seconds" | "favorite" | "rating" | "skip_count" | "first_played" | "added_to_library";
-
-const updatedUSD = async (track_id: string, change: USDType, to: string | number | boolean): Promise<boolean> => {
-  if (typeof to == "boolean") {
-    if (to) to = 1
-    else to = 0
-  }
-  const data = await api("/uusd", "POST", { track_id, change, to })
-  if (data == false) return false;
-  else return true
-  // try {
-  //   const response = await axios.post(process.env.NEXT_PUBLIC_API_URL + "/uusd", {
-  //     track_id,
-  //     change,
-  //     to
-  //   }, {
-  //     withCredentials: true
-  //   });
-  //   console.log(response.data);
-  //   return true
-  // } catch (error) {
-  //   console.log("Error:", error);
-  //   return false
-  // }
-}
 
 export const logOut = async () => {
   try {

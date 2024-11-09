@@ -1,15 +1,15 @@
 # -*- coding: utf-8 -*-
+import os
 import json
 import math
-import os
-import subprocess
 import time
 import random 
 import string
 import secrets
-import hashlib
 import asyncio
 import logging
+import subprocess
+import urllib.parse
 from typing import Optional
 from datetime import datetime
 from collections import namedtuple
@@ -41,6 +41,9 @@ ROOT_PATH = os.environ.get("ROOT_PATH")
 ENV_DIR = f"{ROOT_PATH}{os.environ.get('ENV_DIR')}"
 MUSIC_DIR = f"{ROOT_PATH}{os.environ.get('MUSIC_DIR')}"
 DB_FILE = f"{ENV_DIR}/data/music.db"
+IMAGES_DIR = f"{ROOT_PATH}{os.environ.get('IMAGES_DIR')}"
+PROFILE_IMAGES_DIR = f"{IMAGES_DIR}{os.environ.get('PROFILE_IMAGES_DIR')}"
+NOTFOUND_IMAGES_DIR = f"{IMAGES_DIR}{os.environ.get('NOTFOUND_IMAGES_DIR')}"
 
 GMAIL = os.environ.get('GMAIL')
 GMAIL_PASSWORD = os.environ.get('GMAIL_PASSWORD')
@@ -81,6 +84,19 @@ ch.setFormatter(CustomFormatter())
 
 logger.addHandler(ch)
 ##L -------------------------CUSTOM LOGGER-------------------------
+
+##I -----------------------------IMAGE-----------------------------
+@app.route("/api/img/<path:path>", methods=['GET'])
+def get_img(path: str):
+    file_path = os.path.join(IMAGES_DIR, path)
+    
+    if os.path.exists(file_path):
+        return send_file(file_path)
+    else:
+        not_found = get_random_img_rel_path(NOTFOUND_IMAGES_DIR)
+        not_found_file = os.path.join(NOTFOUND_IMAGES_DIR, not_found)
+        return send_file(not_found_file)
+##I -----------------------------IMAGE-----------------------------
 
 ##M -----------------------------MUSIC-----------------------------
 # TODO
@@ -399,6 +415,7 @@ async def get_session_data():
 
     return jsonify(data)
 
+# TODO Delete user (give 5 days for recover, before deleting user data)
 # authorizing
 @app.route('/api/taken', methods=['POST'])
 async def is_taken():
@@ -575,6 +592,16 @@ def generate_session_token(length=32):
 
 async def create_session_for_user(username: str):
     try:
+        # Cleanup user_session_data and expired sessions
+        await sql("""
+            DELETE FROM user_session_data
+            WHERE session_token NOT IN (SELECT session_token FROM user_sessions)
+        """)
+        await sql("""
+            DELETE FROM user_sessions
+            WHERE expiry < CAST((julianday('now') - 2440587.5)*86400000 AS INTEGER)
+        """)
+
         user = await sql("SELECT * FROM user WHERE username = ? OR email = ?", [username, username], fetch_results=True)
         if user is None:
             return {"success": False, "message": "User not found", "session_token": None}
@@ -624,12 +651,14 @@ async def create_user(username: str, email: str, password: str):
         hashed_password = hash_password(password)
         verify_code = generate_verification_code()
         code_expiry = get_time(5 * 60)
+        img_rel_path = get_random_img_rel_path(PROFILE_IMAGES_DIR)
+        img_url = f"https://192.168.7.146:8000/api/img/{urllib.parse.quote(img_rel_path)}"
         
         created = await sql(""" 
             INSERT INTO user
-            (username, email, password, created_at, verify_email_code, code_expiry)
-            VALUES (?,?,?,?,?,?)
-        """, [username, email, hashed_password, created_at, verify_code, code_expiry], fetch_success=True)
+            (username, email, password, created_at, verify_email_code, code_expiry, img_url)
+            VALUES (?,?,?,?,?,?,?)
+        """, [username, email, hashed_password, created_at, verify_code, code_expiry, img_url], fetch_success=True)
         
         if created == None:
             send_mail = await send_verification_email(email, username, verify_code)
@@ -784,6 +813,23 @@ def format_namedtuple(songs, first = False):
         for song in songs
     ]
     return named[0] if first else named
+
+def get_random_img_rel_path(path: str):
+    '''
+    returns: [paths basename]/file
+    '''
+    for root, _, files in os.walk(path):
+        length = len(files)
+        random_int = math.floor(random.random() * length)
+        rel_path = os.path.join(root, files[random_int])
+        count = 0
+
+        while os.path.exists(rel_path) == False and count < 11:
+            random_int = math.floor(random.random() * length)
+            path_basename = os.path.basename(path)
+            rel_path = os.path.join(path_basename, files[random_int])
+
+        return rel_path
 
 async def sql(query: str, params=None, fetch_results=False, fetch_success=False, max_retries=5):
     for attempt in range(max_retries):

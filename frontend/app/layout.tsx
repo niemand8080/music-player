@@ -4,6 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/provider/theme-provider";
 import { AudioProvider } from "@/components/provider/audio-provider";
 import { UserProvider } from "@/components/provider/user-provider";
+import { SongActionProvider } from "@/components/provider/song-action-provider"; 
 import Header from "./Header";
 import { Toaster } from "@/components/ui/toaster";
 import { PageProtector } from "./PageProtector";
@@ -49,14 +50,16 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <UserProvider>
-            <Header />
-            <AudioProvider>
-              <Padding>
-                {children}
-              </Padding>
-              <Player />
-            </AudioProvider>
-            <PageProtector />
+            <SongActionProvider>
+              <Header />
+              <AudioProvider>
+                <Padding>
+                  {children}
+                </Padding>
+                <Player />
+              </AudioProvider>
+              <PageProtector />
+            </SongActionProvider>
           </UserProvider>
           <Toaster />
         </ThemeProvider>
