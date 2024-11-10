@@ -56,7 +56,7 @@ export const UserAvatar = () => {
               Settings
             </Link>
           </DropdownMenuItem>
-          <ModeToggle asChilde />
+          <ModeToggle asChilde show="md" />
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={logOut} destructive className="gap-2 flex">
             <LogOut size={16} />

@@ -31,27 +31,17 @@ const Page: React.FC = () => {
   const [usernameError, setUsernameError] = useState<boolean>(false);
   const [passwordError, setPasswordError] = useState<boolean>(false);
   const [emailErrorMessage, setEmailErrorMessage] = useState<
-    "Taken" | "Not Vailid"
+    "Taken" | "Not Valid"
   >("Taken");
   const [usernameErrorMessage, setUsernameErrorMessage] = useState<
     "Taken" | "Special Char"
   >("Taken");
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [alreadyLogedIn, setAlreadyLogedIn] = useState<boolean>(false);
+  const [alreadyLoggedIn, setAlreadyLoggedIn] = useState<boolean>(false);
 
   const isTaken = async (value: string): Promise<boolean> => {
     const data = await api("/taken", "POST", { value });
     return data.exists;
-    // try {
-    //   const response = await axios.post(
-    //     process.env.NEXT_PUBLIC_API_URL + "/taken",
-    //     { value: value }
-    //   );
-    //   return response.data.exists;
-    // } catch (error) {
-    //   console.error("Error: ", error);
-    //   return false;
-    // }
   };
 
   const register_user = async (
@@ -63,7 +53,7 @@ const Page: React.FC = () => {
     setIsLoading(true);
 
     
-    if (alreadyLogedIn) logOut();
+    if (alreadyLoggedIn) logOut();
     
     try {  
       const response = await axios.post(
@@ -90,7 +80,7 @@ const Page: React.FC = () => {
   };
 
   useEffect(() => {
-    const found = async () => setAlreadyLogedIn(await findLogin());
+    const found = async () => setAlreadyLoggedIn(await findLogin());
     found();
 
     const handleKeyPress = (e: KeyboardEvent) => {
@@ -153,24 +143,24 @@ const Page: React.FC = () => {
                   setEmailError(false);
                   return;
                 }
-                const vailid = !/^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/.test(value);
+                const valid = !/^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/.test(value);
 
-                setEmailErrorMessage("Not Vailid");
-                setEmailError(vailid);
+                setEmailErrorMessage("Not Valid");
+                setEmailError(valid);
                 
-                if (!vailid) {
+                if (!valid) {
                   const taken = await isTaken(value);
-                  const msg = taken ? "Taken" : "Not Vailid";
+                  const msg = taken ? "Taken" : "Not Valid";
   
                   setEmailErrorMessage(msg);
-                  setEmailError(vailid || taken);
+                  setEmailError(valid || taken);
                 }
               }}
             />
             <div
               className={`${
                 emailError ? "" : "opacity-0"
-              } absolute right-2 top-8 text-xs text-error tranistion-all font-bold pointer-events-none`}
+              } absolute right-2 top-8 text-xs text-error transition-all font-bold pointer-events-none`}
             >
               {emailErrorMessage}
             </div>
@@ -186,22 +176,22 @@ const Page: React.FC = () => {
               error={usernameError}
               onChange={async () => {
                 const value = usernameRef.current?.value || "";
-                const vailid = /[^a-zA-Z0-9_-]/.test(value);
+                const valid = /[^a-zA-Z0-9_-]/.test(value);
 
                 setUsernameErrorMessage("Special Char");
-                setUsernameError(vailid);
+                setUsernameError(valid);
 
                 const taken = await isTaken(value);
                 const msg = taken ? "Taken" : "Special Char";
 
                 setUsernameErrorMessage(msg);
-                setUsernameError(vailid || taken);
+                setUsernameError(valid || taken);
               }}
             />
             <div
               className={`${
                 usernameError ? "" : "opacity-0"
-              } absolute right-2 top-8 text-xs text-error tranistion-all font-bold pointer-events-none`}
+              } absolute right-2 top-8 text-xs text-error transition-all font-bold pointer-events-none`}
             >
               {usernameErrorMessage}
             </div>
@@ -226,7 +216,7 @@ const Page: React.FC = () => {
             <div
               className={`${
                 passwordError ? "" : "opacity-0"
-              } absolute right-2 top-8 text-xs text-error tranistion-all font-bold pointer-events-none`}
+              } absolute right-2 top-8 text-xs text-error transition-all font-bold pointer-events-none`}
             >
               To Short
             </div>

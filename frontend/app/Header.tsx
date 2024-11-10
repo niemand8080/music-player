@@ -27,7 +27,7 @@ const Header: React.FC = () => {
     return (
       <>
         <div className="fixed top-0 left-0 max-w-[100vw] w-screen h-14 z-10 backdrop-blur-sm">
-          <div className="max-w-[104rem] flex px-5 justify-between items-center h-full mx-auto outline">
+          <div className="max-w-[104rem] flex px-5 justify-between items-center h-full mx-auto">
             <Link href={"/"} className="font-bold flex gap-2 items-center">
               <HeaderIcon />
               <span>Music Player</span>
@@ -48,12 +48,16 @@ const Header: React.FC = () => {
           <ResponsiveHeaderLinks only="sheet" />
           <span className="">Music Player</span>
         </Link>
-        <div className="flex space-x-3 items-center h-6">
-          <ResponsiveHeaderLinks only="urls" />
+        <div className="flex gap-1 items-center h-6">
+          <div className="mr-3">
+            <ResponsiveHeaderLinks only="urls" />
+          </div>
+          <Separator orientation="vertical" className="md:block hidden" />
+          <ModeToggle show="md" />
           <Separator orientation="vertical" className="sm:block hidden" />
-          <ModeToggle />
-          <Separator orientation="vertical" className="sm:block hidden" />
-          <UserAvatar />
+          <div className="ml-3 flex items-center justify-center">
+            <UserAvatar />
+          </div>
         </div>
       </div>
     </div>

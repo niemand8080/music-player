@@ -13,20 +13,18 @@ import {
 } from "@/components/ui/card";
 import Link from "next/link";
 import axios from "axios";
-import { useRouter } from "next/navigation";
 import { ButtonLoader } from "@/components/my-ui/loader";
 import { useToast } from "@/hooks/use-toast";
 import { findLogin } from "@/lib/my_utils";
 import { logOut } from "@/components/provider/user-provider";
 
 const Page: React.FC = () => {
-  const router = useRouter();
   const { toast } = useToast();
 
   const passwordRef = useRef<HTMLInputElement>(null);
   const usernameRef = useRef<HTMLInputElement>(null);
 
-  const [isLodaing, setIsloading] = useState<boolean>(false);
+  const [isLodaing, setIsLoading] = useState<boolean>(false);
   const [alreadyLoggedIn, setAlreadyLoggedIn] = useState<boolean>(false);
 
   useEffect(() => {
@@ -60,7 +58,7 @@ const Page: React.FC = () => {
     const passwordElement = passwordRef.current;
 
     if (!usernameElement || !passwordElement) return;
-    setIsloading(true);
+    setIsLoading(true);
 
     const username = usernameElement.value;
     const password = passwordElement.value;
@@ -80,10 +78,10 @@ const Page: React.FC = () => {
       );
       if (response.data.success) {
         toast({
-          title: "Successfully loged in",
+          title: "Successfully logged in",
           description: `Redirecting...`,
         });
-        router.push("/");
+        window.location.pathname = "/";
       } else {
         toast({
           variant: "destructive",
@@ -108,7 +106,7 @@ const Page: React.FC = () => {
         });
       }
     } finally {
-      setIsloading(false);
+      setIsLoading(false);
     }
   };
 

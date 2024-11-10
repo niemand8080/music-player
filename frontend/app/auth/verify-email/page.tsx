@@ -66,7 +66,7 @@ const page: React.FC = () => {
     } catch (error) {
       console.error("Error: " + error);
       toast({
-        title: "An error occured while verifing",
+        title: "An error occurred while verifying",
         description: `${error}`,
       });
     } finally {
@@ -140,7 +140,7 @@ const page: React.FC = () => {
         </CardContent>
         <CardFooter>
           <div className="flex items-center -translate-y-1 w-full justify-center">
-            <span className="text-zinc-500">Did not recive code?</span>
+            <span className="text-zinc-500">Did not recife code?</span>
             <Button variant={"link"} onClick={sendNewCode}>
               Send New Code
             </Button>

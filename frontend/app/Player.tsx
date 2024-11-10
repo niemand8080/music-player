@@ -10,8 +10,9 @@ import { SongOptions } from "@/components/my-ui/song";
 
 export const Player = () => {
   const pathname = usePathname();
-  const { currentSong } = useAudio();
+  const { currentSong } = useAudio();  
   if (getPageSetting(pathname, 'playerHidden')) return null;
+
   return (
     <>
       <div className="max-w-[100vw] w-screen fixed bottom-0 left-0 border-t h-[65px] z-10 backdrop-blur-sm">

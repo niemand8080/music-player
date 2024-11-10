@@ -59,6 +59,8 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
             id: user.id,
           };
           setUser(newUser);
+        } else {
+          setAuthorized(false);
         }
         if (typeof window == "undefined") return;
         const lastWelcome = Number(
@@ -79,8 +81,8 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
 
   useEffect(() => {
     if (user) setAuthorized(true);
-    else setAuthorized(false);
-  }, [user]);
+    else if (authorized != undefined) setAuthorized(false);
+  }, [user, authorized]);
 
   useEffect(() => {
     if (sentWelcome) return;
