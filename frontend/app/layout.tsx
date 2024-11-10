@@ -12,6 +12,7 @@ import { Player } from "./Player";
 import { Padding } from "./Padding";
 import { AlertSpammer } from "@/components/my-ui/alert-spammer";
 import { Background } from "./Background";
+import { SongList } from "./SongList";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -57,7 +58,10 @@ export default function RootLayout({
                 <Header />
                 <AudioProvider>
                   <Background />
-                  <Padding>{children}</Padding>
+                  <Padding>
+                    <SongList />
+                    {children}
+                  </Padding>
                   <Player />
                 </AudioProvider>
                 <PageProtector />

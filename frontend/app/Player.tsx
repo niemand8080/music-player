@@ -16,7 +16,7 @@ export const Player = () => {
   return (
     <>
       <div className="max-w-[100vw] w-screen fixed bottom-0 left-0 border-t h-[65px] z-10 backdrop-blur-sm">
-        <div className="flex items-center justify-between p-2 mx-auto max-w-[104rem]">
+        <div className="flex items-center justify-between p-2 mx-auto max-w-xxl">
           <SongDisplay song={currentSong} />
           <PlayButtons />
         </div>
@@ -36,7 +36,7 @@ export const SongDisplay: React.FC<{ song: SongType | undefined }> = ({ song }) 
     </div>
   )
   return (
-    <div className="w-96 h-full rounded-md flex gap-2">
+    <div className="w-96 h-full rounded-md flex gap-3">
       <BlurImg 
         src={song.img_url || "https://niemand8080.de/db/images/Super%20Mario%20World%20Game%20Over%20LoFi%20Hip%20Hop%20Remix.png"}
         alt="Song Cover"
@@ -70,7 +70,7 @@ export const PlayButtons: React.FC = () => {
           setCountLeft((prev) => prev + 1);
           setTimeout(() => setCountLeft((prev) => prev + 1), 100);
         }}
-        className="group relative hidden sm:flex items-center hover:text-primary rotate-180 disabled:text-secondary"
+        className="group relative hidden sm:flex items-center hover:text-primary rotate-180 disabled:text-secondary-foreground"
       >
         <Play
           size={20}
@@ -142,7 +142,7 @@ export const PlayButtons: React.FC = () => {
           setCountRight((prev) => prev + 1);
           setTimeout(() => setCountRight((prev) => prev + 1), 100);
         }}
-        className="group relative flex items-center hover:text-primary disabled:text-secondary"
+        className="group relative flex items-center hover:text-primary disabled:text-secondary-foreground"
       >
         <Play
           size={20}

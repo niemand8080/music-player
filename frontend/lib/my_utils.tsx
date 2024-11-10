@@ -14,7 +14,7 @@ export const findLogin = async () => {
     if (response.data.success) {
       toast({
         variant: "destructive",
-        title: "You are already loged in",
+        title: "You are already logged in",
         description: "By switching accounts your current account will be logged out",
         action: (
           <ToastAction altText="Logout" onClick={logOut}>

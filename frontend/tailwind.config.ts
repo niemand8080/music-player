@@ -71,7 +71,13 @@ const config: Config = {
   			lg: 'var(--radius)',
   			md: 'calc(var(--radius) - 2px)',
   			sm: 'calc(var(--radius) - 4px)'
-  		}
+  		},
+			maxHeight: {
+				"xxl": '104rem'
+			},
+			maxWidth: {
+				"xxl": '104rem'
+			},
   	}
   },
   // eslint-disable-next-line @typescript-eslint/no-require-imports

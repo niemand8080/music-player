@@ -25,7 +25,7 @@ export const ModeToggle: React.FC<{
             e.preventDefault();
             toggleTheme();
           }}
-          className={`${show + ":hidden"} gap-2 flex no-select`}
+          className={`${show == "md" ? "md:hidden" : show == "sm" ? "sm:hidden" : "lg:hidden"} gap-2 flex no-select`}
         >
           <Sun
             className={`h-[1rem] w-[1rem] rotate-0 scale-100 transition-all duration-300 dark:-rotate-180 dark:scale-20 dark:opacity-0`}
