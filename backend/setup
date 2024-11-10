@@ -140,6 +140,8 @@ done
 printf "${CYAN}Initialize DB${NC}\n"
 
 # initialize DB
+sqlite3 $DB_FILE "PRAGMA foreign_keys = ON;"
+
 # Create songs table
 sqlite3 $DB_FILE "
 CREATE TABLE IF NOT EXISTS songs (
@@ -201,7 +203,7 @@ sqlite3 $DB_FILE "
 CREATE TABLE IF NOT EXISTS user_sessions (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL,
-  session_token TEXT NOT NULL,
+  session_token TEXT NOT NULL UNIQUE,
   expiry INTEGER NOT NULL,
   FOREIGN KEY (user_id) REFERENCES user(id) 
 );

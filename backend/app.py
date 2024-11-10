@@ -836,6 +836,7 @@ async def sql(query: str, params=None, fetch_results=False, fetch_success=False,
     for attempt in range(max_retries):
         try:
             async with aiosqlite.connect(DB_FILE) as connection:
+                await connection.execute("PRAGMA foreign_keys = ON")
                 if fetch_results:
                     connection.row_factory = aiosqlite.Row
                 async with connection.execute(query, params) as cursor:
@@ -856,7 +857,7 @@ async def sql(query: str, params=None, fetch_results=False, fetch_success=False,
                 return results
         except aiosqlite.OperationalError as e:
             if "database is locked" in str(e) and attempt < max_retries - 1:
-                wait_time = (attempt + 1) * 0.5  # Increase wait time with each attempt
+                wait_time = (attempt + 1) * 0.5
                 logger.error(f"Database is locked. Retrying in {wait_time} seconds... (Attempt {attempt + 1}/{max_retries})")
                 await asyncio.sleep(wait_time)
             else:
