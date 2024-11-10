@@ -31,7 +31,7 @@ export const ResponsiveHeaderLinks: React.FC<{ only?: "sheet" | "urls" }> = ({
       {only != "urls" && (
         <Sheet>
           <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className="sm:hidden">
+            <Button variant="ghost" size="icon" className="sm:hidden hover:bg-transparent">
               <Menu className="h-5 w-5" />
               <span className="sr-only">Toggle menu</span>
             </Button>

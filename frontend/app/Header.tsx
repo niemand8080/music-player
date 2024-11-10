@@ -26,31 +26,35 @@ const Header: React.FC = () => {
   if (getPageSetting(pathname, "simpleHeader"))
     return (
       <>
-        <div className="fixed top-0 left-0 max-w-[100vw] w-screen h-14 flex px-5 justify-between items-center z-10 backdrop-blur-sm">
-          <Link href={"/"} className="font-bold flex gap-2 items-center">
-            <HeaderIcon />
-            <span>Music Player</span>
-          </Link>
-          <div className="flex sm:gap-5 gap-3 items-center">
-            <ModeToggle always={true} />
+        <div className="fixed top-0 left-0 max-w-[100vw] w-screen h-14 z-10 backdrop-blur-sm">
+          <div className="max-w-[104rem] flex px-5 justify-between items-center h-full mx-auto outline">
+            <Link href={"/"} className="font-bold flex gap-2 items-center">
+              <HeaderIcon />
+              <span>Music Player</span>
+            </Link>
+            <div className="flex sm:gap-5 gap-3 items-center">
+              <ModeToggle always={true} />
+            </div>
           </div>
         </div>
       </>
     );
 
   return (
-    <div className="fixed top-0 left-0 max-w-[100vw] w-screen h-14 flex justify-between px-3 sm:px-5 items-center z-10 backdrop-blur-sm">
-      <Link href={"/"} className="font-bold flex gap-2 items-center">
-        <HeaderIcon advanced />
-        <ResponsiveHeaderLinks only="sheet" />
-        <span className="">Music Player</span>
-      </Link>
-      <div className="flex space-x-3 items-center h-6">
-        <ResponsiveHeaderLinks only="urls" />
-        <Separator orientation="vertical" className="sm:block hidden" />
-        <ModeToggle />
-        <Separator orientation="vertical" className="sm:block hidden" />
-        <UserAvatar />
+    <div className="fixed top-0 left-0 max-w-[100vw] w-screen h-14 z-10 backdrop-blur-sm">
+      <div className="max-w-[104rem] flex justify-between px-3 sm:px-5 items-center h-full mx-auto">
+        <Link href={"/"} className="font-bold flex sm:gap-2 items-center">
+          <HeaderIcon advanced />
+          <ResponsiveHeaderLinks only="sheet" />
+          <span className="">Music Player</span>
+        </Link>
+        <div className="flex space-x-3 items-center h-6">
+          <ResponsiveHeaderLinks only="urls" />
+          <Separator orientation="vertical" className="sm:block hidden" />
+          <ModeToggle />
+          <Separator orientation="vertical" className="sm:block hidden" />
+          <UserAvatar />
+        </div>
       </div>
     </div>
   );
@@ -63,7 +67,7 @@ const HeaderIcon: React.FC<{ advanced?: boolean }> = ({ advanced }) => {
   } transition-all absolute`;
   const icon = getPageSetting(pathname, "icon");
   return (
-    <div className="w-4 h-4 relative items-center justify-center flex">
+    <div className="w-5 h-5 relative items-center justify-center sm:flex hidden">
       <Music2
         size={16}
         className={`${className} ${icon != "music-2" && "opacity-0 scale-0"}`}

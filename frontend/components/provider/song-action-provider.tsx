@@ -2,6 +2,7 @@
 import { api, SongType } from "@/lib/utils"
 import React, { createContext, useContext } from "react"
 import { useUser } from "./user-provider";
+import { useAlert } from "./alert-provider";
 
 interface SongActionProvider {
   toggleLibrary: (song: SongType) => void;
@@ -12,12 +13,17 @@ const SongActionContext = createContext<SongActionProvider | undefined>(undefine
 
 export const SongActionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { authorized } = useUser();
+  const { newAlert } = useAlert();
   
   const toggleLibrary = async (song: SongType) => {
     if (!authorized) return;
     const newValue = !song.added_to_library;
     const updated = await updateUSD(song.track_id, "added_to_library", newValue)
-    if (updated) song.added_to_library = newValue;
+    if (updated) {
+      song.added_to_library = newValue;
+      if (newValue) newAlert("Added to Library", undefined, 2000, "success");
+      else newAlert("Removed from Library", undefined, 2000, "success");
+    }
   };
 
   const toggleFavorite = async (song: SongType) => {
@@ -25,6 +31,8 @@ export const SongActionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const newValue = !song.favorite;
     const updated = await updateUSD(song.track_id, "favorite", newValue)
     if (updated) song.favorite = newValue;
+    if (newValue) newAlert("Marked Favorite", undefined, 2000, "success");
+    else newAlert("Favorite Revoked", undefined, 2000, "success");
   }
 
   return (

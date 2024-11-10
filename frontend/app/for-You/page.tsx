@@ -1,18 +1,10 @@
 "use client";
 import React from "react";
-import { useAudio } from "@/components/provider/audio-provider";
-import { Button } from "@/components/ui/button";
 
-const Page = () => {
-  const { isPlaying, togglePlayPause } = useAudio();
+const ForYou = () => {
   return (
-    <div className="flex h-screen items-center justify-center gap-5">
-      For You
-      <Button onClick={togglePlayPause}>
-        {isPlaying ? "True" : "False"}
-      </Button>
-    </div>
+    <div className="flex h-screen items-center justify-center gap-5">For You</div>
   );
 };
 
-export default Page;
+export default ForYou;

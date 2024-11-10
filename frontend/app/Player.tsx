@@ -5,11 +5,8 @@ import { useAudio } from "@/components/provider/audio-provider";
 import { usePathname } from "next/navigation";
 import { getPageSetting, SongType } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Ellipsis } from "lucide-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { useUser } from "@/components/provider/user-provider";
 import { BlurImg } from "@/components/my-ui/blur-img";
-import { useSongAction } from "@/components/provider/song-action-provider";
+import { SongOptions } from "@/components/my-ui/song";
 
 export const Player = () => {
   const pathname = usePathname();
@@ -53,26 +50,6 @@ export const SongDisplay: React.FC<{ song: SongType | undefined }> = ({ song }) 
     </div>
   )
 };
-
-export const SongOptions: React.FC<{ song: SongType }> = ({ song }) => {
-  const { user } = useUser();
-  const { toggleLibrary } = useSongAction();
-
-  return (
-    <>
-      <DropdownMenu>
-        <DropdownMenuTrigger className="rounded-full my-auto">
-          <Ellipsis size={24} className="rounded-full hover:text-primary transition-all duration-300 hover:bg-primary/10 p-0.5" />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent>
-          <DropdownMenuItem disabled={user == undefined} onClick={() => toggleLibrary(song)}>
-            Add to Library
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </>
-  )
-}
 
 export const PlayButtons: React.FC = () => {
   const { isPlaying, togglePlayPause, playNext, playLast, nextSongs, songHistory, playRandom } = useAudio();

@@ -29,6 +29,8 @@ interface AudioContextType {
   togglePlayRandom: () => void;
   playNext: () => void;
   playLast: () => void;
+  addNext: (song: SongType) => void;
+  addLast: (song: SongType) => void;
 }
 
 const AudioContext = createContext<AudioContextType | undefined>(undefined);
@@ -141,7 +143,13 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
   const getSongs = async (amount: number) => {
     const data = await api(`/songs?a=${amount}`);
     if (data == false) return [];
-    else return data;
+    else {
+      for (const song of data) {
+        const hex = crypto.randomUUID();
+        song.uuid = hex;
+      }
+      return data
+    };
   };
 
   // session data
@@ -234,6 +242,20 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
     setSongHistory(remaining);
   };
 
+  // Appends the song to the start of the nextSongs array
+  const addNext = (song: SongType) => {
+    const copy = JSON.parse(JSON.stringify(song));
+    copy.uuid = crypto.randomUUID();
+    setNextSongs(prev => [copy, ...prev]);
+  }
+
+  // Appends the song to the end of the nextSongs array
+  const addLast = (song: SongType) => {
+    const copy = JSON.parse(JSON.stringify(song));
+    copy.uuid = crypto.randomUUID();
+    setNextSongs(prev => [...prev, copy]);
+  }
+
   return (
     <AudioContext.Provider
       value={{
@@ -254,6 +276,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
         togglePlayRandom,
         playNext,
         playLast,
+        addNext,
+        addLast,
       }}
     >
       {children}
