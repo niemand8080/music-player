@@ -43,7 +43,7 @@ export default function Page() {
   };
 
   useEffect(() => {
-    alert("Implement TanStack Table:\nhttps://tanstack.com/table/latest/docs/guide/column-ordering")
+    // alert("Implement TanStack Table:\nhttps://tanstack.com/table/latest/docs/guide/column-ordering")
     getData();
   }, [user]);
 

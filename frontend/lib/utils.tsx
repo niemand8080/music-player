@@ -24,6 +24,8 @@ export type SongType = {
   path: string;
   yt_link: string | null;
   img_url: string | null;
+  // uuid
+  uuid: string;
   // if logged in
   favorite: boolean | null;
   rating: number | null;
@@ -51,6 +53,8 @@ export const sampleSong: SongType = {
   yt_link: "https://www.youtube.com",
   img_url:
     "https://as1.ftcdn.net/v2/jpg/04/62/93/66/1000_F_462936689_BpEEcxfgMuYPfTaIAOC1tCDurmsno7Sp.jpg",
+  // uid
+  uuid: "0000000000000000",
   // user only
   favorite: false,
   rating: 0,
@@ -121,46 +125,104 @@ export function download(
 }
 
 // Page
-export const pageSettings = [
-  { path: "/auth", simpleHeader: true, playerHidden: true, noPadding: true },
+type PageType = {
+  path: string;
+  simpleHeader: boolean;
+  playerHidden: boolean;
+  noPadding: boolean;
+  icon:
+    | "activity"
+    | "music-2"
+    | "search"
+    | "list-music"
+    | "audio-lines"
+    | "library"
+    | "user-plus"
+    | "badge-check"
+    | "fingerprint"
+    | "heart";
+};
+
+export const pageSettings: PageType[] = [
+  {
+    path: "/auth",
+    simpleHeader: true,
+    playerHidden: true,
+    noPadding: true,
+    icon: "fingerprint",
+  },
   {
     path: "/auth/login",
     simpleHeader: true,
     playerHidden: true,
     noPadding: true,
+    icon: "fingerprint",
   },
   {
     path: "/auth/sign-up",
     simpleHeader: true,
     playerHidden: true,
     noPadding: true,
+    icon: "user-plus",
   },
   {
     path: "/auth/verify-email",
     simpleHeader: true,
     playerHidden: true,
     noPadding: true,
+    icon: "badge-check",
   },
   {
     path: "/link-grabber",
     simpleHeader: true,
     playerHidden: true,
     noPadding: true,
+    icon: "music-2",
   },
   {
     path: "/visualizer",
     simpleHeader: true,
     playerHidden: false,
     noPadding: true,
+    icon: "audio-lines",
+  },
+  {
+    path: "/library",
+    simpleHeader: false,
+    playerHidden: false,
+    noPadding: false,
+    icon: "library",
+  },
+  {
+    path: "/discover",
+    simpleHeader: false,
+    playerHidden: false,
+    noPadding: false,
+    icon: "search",
+  },
+  {
+    path: "/playlists",
+    simpleHeader: false,
+    playerHidden: false,
+    noPadding: false,
+    icon: "list-music",
+  },
+  {
+    path: "/for-you",
+    simpleHeader: false,
+    playerHidden: false,
+    noPadding: false,
+    icon: "heart",
   },
 ];
 
 export const getPageSetting = (
   pathname: string,
-  setting: "simpleHeader" | "playerHidden" | "noPadding"
-): boolean => {
+  setting: "simpleHeader" | "playerHidden" | "noPadding" | "icon"
+): boolean | string => {
   const page = pageSettings.filter((page) => page.path == pathname)[0];
-  if (!page) return false;
+  if (setting == "icon" && !page) return "music-2";
+  else if (!page) return false;
   return page[setting];
 };
 
@@ -190,7 +252,7 @@ export const api = async (
     }
   } catch (error) {
     console.log(`(${path}) Error: ${error}`);
-    return false
+    return false;
   }
 };
 
@@ -199,4 +261,14 @@ export const sendBeacon = (path: string, data: { [key: string]: any }) => {
   const json = JSON.stringify(data);
   const blob = new Blob([json], { type: "application/json" });
   navigator.sendBeacon(process.env.NEXT_PUBLIC_API_URL + path, blob);
+};
+
+// Alert
+export interface AlertType {
+  title: string | JSX.Element;
+  type: "success" | "error" | "default";
+  displayTime: number;
+  path?: string;
+  uid?: string;
+  deleted?: boolean;
 }

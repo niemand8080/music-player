@@ -4,7 +4,6 @@ import { toast } from "@/hooks/use-toast";
 import axios from "axios";
 import { ToastAction } from "../ui/toast";
 import { usePathname, useRouter } from "next/navigation";
-import { api } from "@/lib/utils";
 
 export type UserType = {
   created_at: number;
