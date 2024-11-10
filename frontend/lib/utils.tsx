@@ -1,4 +1,5 @@
 import axios from "axios";
+import convert from "color-convert"
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -230,7 +231,7 @@ export const getPageSetting = (
 export const api = async (
   path: string,
   method: "GET" | "POST" = "GET",
-  data?: { [key: string]: any }
+  data?: { [key: string]: string | number | boolean }
 ) => {
   try {
     if (method == "POST") {
@@ -257,7 +258,10 @@ export const api = async (
 };
 
 // sendBeacon
-export const sendBeacon = (path: string, data: { [key: string]: any }) => {
+export const sendBeacon = (
+  path: string,
+  data: { [key: string]: string | number | boolean }
+) => {
   const json = JSON.stringify(data);
   const blob = new Blob([json], { type: "application/json" });
   navigator.sendBeacon(process.env.NEXT_PUBLIC_API_URL + path, blob);
@@ -271,4 +275,26 @@ export interface AlertType {
   path?: string;
   uid?: string;
   deleted?: boolean;
+}
+
+// Image
+export async function getAvgHsl(
+  src: string
+): Promise<string> {
+  /* https://stackoverflow.com/questions/2541481/get-average-color-of-image-via-javascript (modified) */
+  return new Promise((resolve) => {
+    const context = document.createElement("canvas").getContext("2d");
+    context!.imageSmoothingEnabled = true;
+
+    const img = new Image();
+    img.src = src;
+    img.crossOrigin = "";
+
+    img.onload = () => {
+      context!.drawImage(img, 0, 0, 1, 1);
+      const c = context!.getImageData(0, 0, 1, 1).data.slice(0, 3);
+      const [h, s, l] = convert.rgb.hsl(c[0], c[1], c[2]);
+      resolve(`${h} ${s} ${l}`);
+    };
+  });
 }
