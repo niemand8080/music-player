@@ -399,6 +399,11 @@ async def set_session_data():
     else:
         return jsonify({ "message": "Something went wrong" })
 
+# await sql("""
+#             DELETE FROM user_session_data
+#             WHERE session_token NOT IN (SELECT session_token FROM user_sessions)
+#         """)
+
 @app.route('/api/get_session_data', methods=['POST'])
 async def get_session_data():
     token = request.cookies.get('session_token')
@@ -592,11 +597,7 @@ def generate_session_token(length=32):
 
 async def create_session_for_user(username: str):
     try:
-        # Cleanup user_session_data and expired sessions
-        await sql("""
-            DELETE FROM user_session_data
-            WHERE session_token NOT IN (SELECT session_token FROM user_sessions)
-        """)
+        # Cleanup expired sessions
         await sql("""
             DELETE FROM user_sessions
             WHERE expiry < CAST((julianday('now') - 2440587.5)*86400000 AS INTEGER)

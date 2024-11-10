@@ -1,8 +1,8 @@
 #!/bin/bash
 
-SONGS="$HOME/Documents/pi/Music/Songs"
-ORIGINAL_FILES="$HOME/Documents/pi/Music/Originals"
-MISSING_METADATA="$HOME/Documents/pi/Music/Missing-Metadata"
+SONGS="$HOME/Documents/pi/Data/Music/Songs"
+ORIGINAL_FILES="$HOME/Documents/pi/Data/Music/Originals"
+MISSING_METADATA="$HOME/Documents/pi/Data/Music/Missing-Metadata"
 DB_FILE="$HOME/Documents/pi/python/envs/music-player/data/music.db"
 
 mkdir -p "$ORIGINAL_FILES"
@@ -55,12 +55,15 @@ done
 
 printf "${CYAN}Done converting files${NC}\n"
 
-# for file in $SONGS/*.mp3; do
-#   if [ "$(ffprobe -loglevel error -show_entries format_tags=title -of default=noprint_wrappers=1:nokey=1 "$file")" == "" ]; then
-#     mv "$file" "$MISSING_METADATA"
-#     ((max_count--))
-#   fi
-# done
+for file in $SONGS/Suno\ *.mp3; do
+  if test ! -f "$file"; then  
+    continue 
+  fi
+  if [ "$(ffprobe -loglevel error -show_entries format_tags=title -of default=noprint_wrappers=1:nokey=1 "$file")" == "" ]; then
+    mv "$file" "$MISSING_METADATA"
+    ((max_count--))
+  fi
+done
 
 # Add metadata to Suno Songs
 for file in $MISSING_METADATA/Suno\ -*.mp3; do
@@ -90,6 +93,9 @@ hashs=()
 printf "${CYAN}Adding track ids to array${NC}\n"
 
 for file in $SONGS/*.mp3; do
+  if test ! -f "$file"; then  
+    continue 
+  fi
   track="$(ffprobe -loglevel error -show_entries format_tags=track -of default=noprint_wrappers=1:nokey=1 "$file")"
   if [ "$track" != "" ]; then
     hashs+=("$track")
@@ -102,6 +108,9 @@ printf "${CYAN}Adding track id to each song if not present${NC}\n"
 counter=1
 add_counter=1
 for file in $SONGS/*.mp3; do
+  if test ! -f "$file"; then  
+    continue 
+  fi
   if [ "$(ffprobe -loglevel error -show_entries format_tags=track -of default=noprint_wrappers=1:nokey=1 "$file")" == "" ]; then
     sha="$(sha256sum "$file")"
     track="${sha:0:8}"
@@ -235,7 +244,11 @@ CREATE TABLE IF NOT EXISTS user_session_data (
   name TEXT NOT NULL,
   data TEXT NOT NULL,
   session_token TEXT NOT NULL,
-  FOREIGN KEY (session_token) REFERENCES user_sessions(session_token)
+  expiry INTEGER,
+  CONSTRAINT fk_session 
+    FOREIGN KEY (session_token) 
+    REFERENCES user_sessions(session_token)
+    ON DELETE CASCADE
   UNIQUE (name, session_token)
 );
 "
@@ -257,7 +270,7 @@ sqlite3 $DB_FILE "CREATE INDEX IF NOT EXISTS idx_user_song_history_user_id ON us
 sqlite3 $DB_FILE "CREATE INDEX IF NOT EXISTS idx_user_song_history_track_id ON user_song_history(track_id);"
 sqlite3 $DB_FILE "CREATE INDEX IF NOT EXISTS idx_user_song_history_date ON user_song_history(date);"
 # Index for user_session_data
-sqlite3 $DB_FILE "CREATE INDEX IF NOT EXISTS idx_user_session_data_json ON user_session_data(json);"
+sqlite3 $DB_FILE "CREATE INDEX IF NOT EXISTS idx_user_session_data_data ON user_session_data(data);"
 sqlite3 $DB_FILE "CREATE INDEX IF NOT EXISTS idx_user_session_data_session_token ON user_session_data(session_token);"
 
 python "sort.py"
