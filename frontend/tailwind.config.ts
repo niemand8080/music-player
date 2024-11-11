@@ -78,6 +78,9 @@ const config: Config = {
 			maxWidth: {
 				"xxl": '104rem'
 			},
+			backdropBlur: {
+				rm: "1px"
+			}
   	}
   },
   // eslint-disable-next-line @typescript-eslint/no-require-imports

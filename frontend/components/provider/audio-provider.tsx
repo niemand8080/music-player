@@ -18,15 +18,19 @@ interface AudioContextType {
   gain: GainNode | null;
   source: MediaElementAudioSourceNode | null;
   // Audio State
-  playRandom: boolean;
   isPlaying: boolean;
+  playInfinity: boolean;
+  isShuffled: boolean;
+  repeat: boolean;
   // Songs
   nextSongs: SongType[];
   currentSong: SongType | undefined;
   songHistory: SongType[];
   // Audio Controls
+  togglePlayInfinity: () => void;
   togglePlayPause: () => void;
-  togglePlayRandom: () => void;
+  toggleIsShuffled: () => void;
+  toggleRepeat: () => void;
   playNext: () => void;
   playLast: () => void;
   addNext: (song: SongType) => void;
@@ -56,7 +60,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
   );
   // Audio States
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
-  const [playRandom, setPlayRandom] = useState<boolean>(true);
+  const [playInfinity, setPlayInfinity] = useState<boolean>(false);
+  const [isShuffled, setIsShuffled] = useState<boolean>(false);
+  const [repeat, setRepeat] = useState<boolean>(false);
   // Songs / Session Data
   const [nextSongs, setNextSongs] = useState<SongType[]>([]);
   const [currentSong, setCurrentSong] = useState<SongType>();
@@ -71,7 +77,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
 
     playNext();
     audio.play();
-  }, [playRandom]);
+  }, [playInfinity]);
 
   // Audio
   useEffect(() => {
@@ -136,7 +142,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
     audio.pause();
     audio.src = `https://192.168.7.146:8000/api/play?t=${currentSong.track_id}`;
     if (wasPlaying) audio.play();
-    api("/set_session_data", "POST", { name: "currentTime", data: 0 });
+    api("/set_session_data", "POST", {
+      items: [{ name: "currentTime", data: 0 }],
+    });
   }, [currentSong]);
 
   // API
@@ -148,19 +156,29 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
         const hex = crypto.randomUUID();
         song.uuid = hex;
       }
-      return data
-    };
+      return data;
+    }
   };
 
   // session data
   useEffect(() => {
     if (!triedLoadingSessionData) return;
-    console.log("nextSongs: ", nextSongs);
-    console.log("currentSong: ", currentSong);
-    console.log("songHistory: ", songHistory);
+    // console.log("nextSongs: ", nextSongs);
+    // console.log("currentSong: ", currentSong);
+    // console.log("songHistory: ", songHistory);
 
-    updateSessionData();
+    updateSongData();
   }, [songHistory, currentSong, nextSongs]);
+
+  useEffect(() => {
+    if (!triedLoadingSessionData) return;
+    // console.log(`isShuffled: ${isShuffled}`);
+    // console.log(`isPlaying: ${isPlaying}`);
+    // console.log(`repeat: ${repeat}`);
+    // console.log(`playInfinity: ${playInfinity}`);
+
+    updatePlayerSettingsData();
+  }, [isShuffled, isPlaying, repeat, playInfinity]);
 
   useEffect(() => {
     window.addEventListener("beforeunload", updateCurrentTimeData);
@@ -175,52 +193,103 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
     if (!audio) return;
 
     sendBeacon("/set_session_data", {
-      name: "currentTime",
-      data: audio.currentTime,
+      items: [
+        {
+          name: "currentTime",
+          data: audio.currentTime,
+        },
+      ],
     });
   };
 
-  const updateSessionData = async () => {
+  const updateSongData = async () => {
     await api("/set_session_data", "POST", {
-      name: "nextSongs",
-      data: nextSongs,
+      items: [
+        {
+          name: "nextSongs",
+          data: nextSongs,
+        },
+        {
+          name: "currentSong",
+          data: currentSong,
+        },
+        {
+          name: "songHistory",
+          data: songHistory,
+        },
+      ],
     });
+  };
+
+  const updatePlayerSettingsData = async () => {
     await api("/set_session_data", "POST", {
-      name: "currentSong",
-      data: currentSong,
-    });
-    await api("/set_session_data", "POST", {
-      name: "songHistory",
-      data: songHistory,
+      items: [
+        {
+          name: "isShuffled",
+          data: isShuffled,
+        },
+        {
+          name: "isPlaying",
+          data: isPlaying,
+        },
+        {
+          name: "repeat",
+          data: repeat,
+        },
+        {
+          name: "playInfinity",
+          data: playInfinity,
+        }
+      ],
     });
   };
 
   const loadSessionData = async () => {
-    const { currentSong, nextSongs, songHistory, currentTime } = await api(
+    const { currentSong, nextSongs, songHistory, currentTime, isShuffled, isPlaying, repeat, playInfinity } = await api(
       "/get_session_data",
       "POST"
     );
     if (nextSongs) setNextSongs(nextSongs);
     if (currentSong) setCurrentSong(currentSong);
     if (songHistory) setSongHistory(songHistory);
+    
     setCurrentTime(Number(currentTime));
+    
+    setIsShuffled(isShuffled);
+    setIsPlaying(isPlaying);
+    setRepeat(repeat);
+    setPlayInfinity(playInfinity);
 
     setTriedLoadingSessionData(true);
   };
 
   // Audio Controls
-  const togglePlayRandom = () => setPlayRandom((prev) => !prev);
   const togglePlayPause = () => setIsPlaying((prev) => !prev);
+  const togglePlayInfinity = () => handleToggle("playInfinity");
+  const toggleIsShuffled = () => handleToggle("isShuffled");
+  const toggleRepeat = () => handleToggle("repeat");
+
+  const handleToggle = (set: "repeat" | "isShuffled" | "playInfinity") => {
+    if (set == "playInfinity") {
+      setPlayInfinity((prev) => !prev);
+      setRepeat(false);
+    } else if (set == "isShuffled") {
+      setIsShuffled((prev) => !prev);
+    } else if (set == "repeat") {
+      setRepeat((prev) => !prev);
+      setPlayInfinity(false);
+    }
+  };
 
   // Plays the next song from the nextSong list
   const playNext = async () => {
-    if ((nextSongs.length == 0 || !currentSong) && !playRandom) return;
+    if ((nextSongs.length == 0 || !currentSong) && !playInfinity) return;
 
     if (currentSong) setSongHistory((prev) => [currentSong, ...prev]);
 
     const amount = 2 - nextSongs.length;
 
-    if (playRandom && amount > 0) {
+    if (playInfinity && amount > 0) {
       const [next, ...remaining] = [...nextSongs, ...(await getSongs(amount))];
       setCurrentSong(next);
       setNextSongs(remaining);
@@ -246,15 +315,15 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
   const addNext = (song: SongType) => {
     const copy = JSON.parse(JSON.stringify(song));
     copy.uuid = crypto.randomUUID();
-    setNextSongs(prev => [copy, ...prev]);
-  }
+    setNextSongs((prev) => [copy, ...prev]);
+  };
 
   // Appends the song to the end of the nextSongs array
   const addLast = (song: SongType) => {
     const copy = JSON.parse(JSON.stringify(song));
     copy.uuid = crypto.randomUUID();
-    setNextSongs(prev => [...prev, copy]);
-  }
+    setNextSongs((prev) => [...prev, copy]);
+  };
 
   return (
     <AudioContext.Provider
@@ -265,15 +334,19 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
         gain,
         source,
         // Audio State
-        playRandom,
         isPlaying,
+        playInfinity,
+        isShuffled,
+        repeat,
         // Songs
         nextSongs,
         currentSong,
         songHistory,
         // Audio Controls
+        togglePlayInfinity,
         togglePlayPause,
-        togglePlayRandom,
+        toggleIsShuffled,
+        toggleRepeat,
         playNext,
         playLast,
         addNext,

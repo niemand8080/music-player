@@ -379,30 +379,32 @@ async def get_song(track_id: str, token: str):
 @app.route('/api/set_session_data', methods=['POST'])
 async def set_session_data():
     token = request.cookies.get('session_token')
-    name = request.json.get('name')
-    data = request.json.get('data')
+    items = request.json.get('items')
     
     if token is None:
         return jsonify({ "error": "Unauthorized" })
     
-    if name is None or data is None:
+    if items is None:
         return jsonify({ "error": "Missing data" })
     
-    db_call = await sql("""
-        INSERT OR REPLACE INTO user_session_data
-        (name, data, session_token)
-        VALUES (?, ?, ?)
-    """, [name, json.dumps(data), token], fetch_success=True)
+    error_count = 0
+
+    for item in items:
+        name = item['name']
+        data = item['data']
+        db_call = await sql("""
+            INSERT OR REPLACE INTO user_session_data
+            (name, data, session_token)
+            VALUES (?, ?, ?)
+        """, [name, json.dumps(data), token], fetch_success=True)
+
+        if not db_call:
+            error_count += 1
         
-    if db_call:
+    if error_count == 0:
         return jsonify({ "message": "Successfully saved data" })
     else:
-        return jsonify({ "message": "Something went wrong" })
-
-# await sql("""
-#             DELETE FROM user_session_data
-#             WHERE session_token NOT IN (SELECT session_token FROM user_sessions)
-#         """)
+        return jsonify({ "message": "Something or everything went wrong" })
 
 @app.route('/api/get_session_data', methods=['POST'])
 async def get_session_data():
