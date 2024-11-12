@@ -11,7 +11,6 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Loader } from "@/components/my-ui/loader";
-import axios from "axios";
 import { Check, X, ChevronLeft } from "lucide-react";
 import { api, download } from "@/lib/utils";
 

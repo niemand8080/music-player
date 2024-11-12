@@ -10,7 +10,7 @@ export const Padding: React.FC<{ children: React.ReactNode }> = ({ children }) =
     <>
       <div className="absolute top-0 left-0 h-14 w-screen" />
       <div className="absolute top-14 left-0 w-screen h-[calc(100vh-7.5rem)]">{children}</div>
-      <div className="absolute bottom-0 left-0 h-16 w-screen" />
+      {/* <div className="absolute bottom-0 left-0 h-16 w-screen" /> */}
     </>
   );
 };

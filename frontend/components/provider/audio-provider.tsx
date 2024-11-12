@@ -18,15 +18,19 @@ interface AudioContextType {
   gain: GainNode | null;
   source: MediaElementAudioSourceNode | null;
   // Audio State
+  currentVolume: number | undefined;
   isPlaying: boolean;
   playInfinity: boolean;
   isShuffled: boolean;
   repeat: boolean;
+  currentTime: number;
+  songDuration: number;
   // Songs
   nextSongs: SongType[];
   currentSong: SongType | undefined;
   songHistory: SongType[];
   // Audio Controls
+  setCurrentVolume: (volume: number) => void;
   togglePlayInfinity: () => void;
   togglePlayPause: () => void;
   toggleIsShuffled: () => void;
@@ -59,17 +63,21 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
     null
   );
   // Audio States
+  const [currentVolume, setCurrentVolume] = useState<number>();
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [playInfinity, setPlayInfinity] = useState<boolean>(false);
   const [isShuffled, setIsShuffled] = useState<boolean>(false);
   const [repeat, setRepeat] = useState<boolean>(false);
-  // Songs / Session Data
+  const [currentTime, setCurrentTime] = useState<number>(0);
+  const [songDuration, setSongDuration] = useState<number>(0);
+  // Songs
   const [nextSongs, setNextSongs] = useState<SongType[]>([]);
   const [currentSong, setCurrentSong] = useState<SongType>();
   const [songHistory, setSongHistory] = useState<SongType[]>([]);
+  // Session Data
   const [triedLoadingSessionData, setTriedLoadingSessionData] =
     useState<boolean>(false);
-  const [currentTime, setCurrentTime] = useState<number>();
+  const [savedTime, setSavedTime] = useState<number>();
 
   const audioEnded = useCallback(() => {
     const audio = audioRef.current;
@@ -77,7 +85,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
 
     playNext();
     audio.play();
-  }, [playInfinity]);
+  }, []);
 
   // Audio
   useEffect(() => {
@@ -106,6 +114,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
     setSource(sourceNode);
 
     audio.addEventListener("ended", audioEnded);
+    audio.addEventListener("timeupdate", () => setCurrentTime(audio.currentTime));
+    audio.addEventListener("durationchange", () => setSongDuration(audio.duration));
 
     loadSessionData();
 
@@ -113,6 +123,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
       audio.pause();
       audioRef.current = null;
       audio.removeEventListener("ended", audioEnded);
+      audio.removeEventListener("timeupdate", () => setCurrentTime(audio.currentTime));
+      audio.removeEventListener("durationchange", () => setSongDuration(audio.duration));
     };
   }, [audioEnded]);
 
@@ -129,8 +141,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
     if (!triedLoadingSessionData) return;
     if (!currentSong || !nextSongs) {
       playNext();
-    } else if (audioRef.current && currentTime) {
-      audioRef.current.currentTime = currentTime;
+    } else if (audioRef.current && savedTime) {
+      audioRef.current.currentTime = savedTime;
     }
   }, [triedLoadingSessionData]);
 
@@ -181,16 +193,18 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [isShuffled, isPlaying, repeat, playInfinity]);
 
   useEffect(() => {
-    window.addEventListener("beforeunload", updateCurrentTimeData);
+    window.addEventListener("beforeunload", updateSomeSessionData);
 
     return () => {
-      window.removeEventListener("beforeunload", updateCurrentTimeData);
+      window.removeEventListener("beforeunload", updateSomeSessionData);
     };
   }, []);
 
-  const updateCurrentTimeData = () => {
+  const updateSomeSessionData = () => {
     const audio = audioRef.current;
     if (!audio) return;
+
+    console.log(currentVolume);
 
     sendBeacon("/set_session_data", {
       items: [
@@ -239,22 +253,31 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
         {
           name: "playInfinity",
           data: playInfinity,
-        }
+        },
       ],
     });
   };
 
   const loadSessionData = async () => {
-    const { currentSong, nextSongs, songHistory, currentTime, isShuffled, isPlaying, repeat, playInfinity } = await api(
-      "/get_session_data",
-      "POST"
-    );
+    const {
+      currentSong,
+      nextSongs,
+      songHistory,
+      currentTime,
+      isShuffled,
+      isPlaying,
+      repeat,
+      playInfinity,
+      currentVolume,
+    } = await api("/get_session_data", "POST");
+
     if (nextSongs) setNextSongs(nextSongs);
     if (currentSong) setCurrentSong(currentSong);
     if (songHistory) setSongHistory(songHistory);
-    
-    setCurrentTime(Number(currentTime));
-    
+
+    setSavedTime(Number(currentTime));
+    setCurrentVolume(Number(currentVolume));
+
     setIsShuffled(isShuffled);
     setIsPlaying(isPlaying);
     setRepeat(repeat);
@@ -303,7 +326,13 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Plays the last song from the songHistory list
   const playLast = () => {
-    if (songHistory.length == 0 || !currentSong) return;
+    const audio = audioRef.current;
+    if (songHistory.length == 0 || !currentSong || !audio) return;
+    if (audio.currentTime > 5) {
+      audio.currentTime = 0
+      return;
+    }
+    
     const [last, ...remaining] = songHistory;
 
     setNextSongs((prev) => [currentSong, ...prev]);
@@ -325,6 +354,27 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
     setNextSongs((prev) => [...prev, copy]);
   };
 
+  // volume
+  useEffect(() => {
+    if (!gain || currentVolume == undefined) return;
+    gain.gain.value = parseFloat(String(currentVolume / 100));
+
+    const timeoutId = setTimeout(() => {
+      sendBeacon("/set_session_data", {
+        items: [
+          {
+            name: "currentVolume",
+            data: currentVolume,
+          },
+        ],
+      });
+    }, 1000);
+
+    return () => {
+      clearTimeout(timeoutId);
+    }
+  }, [currentVolume, gain]);
+
   return (
     <AudioContext.Provider
       value={{
@@ -334,15 +384,19 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
         gain,
         source,
         // Audio State
+        currentVolume,
         isPlaying,
         playInfinity,
         isShuffled,
         repeat,
+        currentTime,
+        songDuration,
         // Songs
         nextSongs,
         currentSong,
         songHistory,
         // Audio Controls
+        setCurrentVolume,
         togglePlayInfinity,
         togglePlayPause,
         toggleIsShuffled,

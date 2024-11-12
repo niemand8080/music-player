@@ -231,7 +231,7 @@ export const getPageSetting = (
 export const api = async (
   path: string,
   method: "GET" | "POST" = "GET",
-  data?: { [key: string]: string | number | boolean }
+  data?: { [key: string]: unknown }
 ) => {
   try {
     if (method == "POST") {
@@ -260,7 +260,7 @@ export const api = async (
 // sendBeacon
 export const sendBeacon = (
   path: string,
-  data: { [key: string]: string | number | boolean }
+  data: { [key: string]: unknown }
 ) => {
   const json = JSON.stringify(data);
   const blob = new Blob([json], { type: "application/json" });

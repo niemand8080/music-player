@@ -99,7 +99,7 @@ const Alert: React.FC<{
     return () => {
       clearInterval(interval);
     };
-  }, [timeLeft, stopCountdown]);
+  }, [timeLeft, stopCountdown, alert, display, removeAlert]);
 
   return (
     <button

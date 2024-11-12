@@ -390,8 +390,11 @@ async def set_session_data():
     error_count = 0
 
     for item in items:
-        name = item['name']
-        data = item['data']
+        name = item.get('name')
+        data = item.get('data')
+        if not 'data' in item:
+            logger.error(f"skipped {name} cuz its None")
+            continue
         db_call = await sql("""
             INSERT OR REPLACE INTO user_session_data
             (name, data, session_token)
