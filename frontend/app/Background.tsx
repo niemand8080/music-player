@@ -12,10 +12,31 @@ export const Background = () => {
     0, 0, 0,
   ]);
 
+  const parseHsl = useCallback((str: string): [number, number, number] => {
+    if (str.includes("--")) {
+      const varName = str.split("--")[1].split(")")[0];
+      const hslStr = window
+        .getComputedStyle(document.documentElement)
+        .getPropertyValue(`--${varName}`).replaceAll("%", "");
+      return hslStr.split(" ").map((str) => Number(str)) as [
+        number,
+        number,
+        number
+      ];
+    } else {
+      const hslStr = str.split("(")[1].split(" /")[0];
+      return hslStr.split(" ").map((str) => Number(str)) as [
+        number,
+        number,
+        number
+      ];
+    }
+  }, []);
+
   useEffect(() => {
     setCurrentHsl(parseHsl("hsl(var(--background))"));
     setTargetHsl(parseHsl("hsl(var(--primary))"));
-  }, []);
+  }, [parseHsl]);
 
   useEffect(() => {
     const setColor = async () => {
@@ -59,35 +80,14 @@ export const Background = () => {
     };
   }, [targetHsl]);
 
-  const parseHsl = useCallback((str: string): [number, number, number] => {
-    if (str.includes("--")) {
-      const varName = str.split("--")[1].split(")")[0];
-      const hslStr = window
-        .getComputedStyle(document.documentElement)
-        .getPropertyValue(`--${varName}`).replaceAll("%", "");
-      return hslStr.split(" ").map((str) => Number(str)) as [
-        number,
-        number,
-        number
-      ];
-    } else {
-      const hslStr = str.split("(")[1].split(" /")[0];
-      return hslStr.split(" ").map((str) => Number(str)) as [
-        number,
-        number,
-        number
-      ];
-    }
-  }, []);
-
   return (
     <div
-      className={`w-screen h-screen fixed top-0 left-0 transition-all duration-1000`}
+      className={`w-screen h-screen fixed top-0 left-0 z-0`}
       style={{
         backgroundImage: `linear-gradient(45deg, 
           hsl(${currentHsl[0]} ${currentHsl[1]} ${currentHsl[2]} / 0.1) 0%, 
-          hsl(var(--background)) 50%, 
-          hsl(var(--background)) 100%
+          transparent 50%, 
+          transparent 100%
         )`,
       }}
     />

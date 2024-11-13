@@ -12,6 +12,18 @@ body {
   }
 }
 
+::-webkit-scrollbar {
+  width: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-secondary rounded-full
+}
+
 /* TW Colors - 500
 red                0 72% 51%
 orange            25 95% 53%

@@ -71,7 +71,7 @@ export const AudioProgress = () => {
           handleMouseUp={handleMouseUp}
         />
       </div>
-      <span className="absolute -bottom-[14px] text-secondary-foreground flex justify-between w-full">
+      <span className="absolute -bottom-3 text-sm text-secondary-foreground flex justify-between w-full">
         <span>{formatTime(currentTime)}</span>
         <span>-{formatTime(songDuration - currentTime)}</span>
       </span>
