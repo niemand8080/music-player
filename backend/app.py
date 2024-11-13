@@ -696,6 +696,7 @@ async def login_user(username: str, password: str) -> bool:
 async def get_user(token: str):
     users = await sql("""
         SELECT 
+            us.expiry,
             u.id,
             u.username,
             u.email,

@@ -37,6 +37,7 @@ interface AudioContextType {
   toggleRepeat: () => void;
   playNext: () => void;
   playLast: () => void;
+  playSongInList: (song: SongType) => void;
   addNext: (song: SongType) => void;
   addLast: (song: SongType) => void;
 }
@@ -80,11 +81,10 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
   const [savedTime, setSavedTime] = useState<number>();
 
   const audioEnded = useCallback(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    playNext();
-    audio.play();
+    // FIXME Play next Song on end
+    console.log(currentSong);
+    audioRef.current && audioRef.current.play()
+    playNext(true);
   }, []);
 
   // Audio
@@ -153,6 +153,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
     const wasPlaying = !audio.paused;
     audio.pause();
     audio.src = `https://192.168.7.146:8000/api/play?t=${currentSong.track_id}`;
+    console.log(currentSong, wasPlaying)
     if (wasPlaying) audio.play();
     api("/set_session_data", "POST", {
       items: [{ name: "currentTime", data: 0 }],
@@ -305,8 +306,10 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   // Plays the next song from the nextSong list
-  const playNext = async () => {
-    if ((nextSongs.length == 0 || !currentSong) && !playInfinity) return;
+  const playNext = useCallback(async (play: boolean = false) => {
+    const audio = audioRef.current;
+    console.log(nextSongs.length == 0 || !currentSong && !playInfinity && !play || !audio, currentSong);
+    if (nextSongs.length == 0 || !currentSong && !playInfinity && !play || !audio) return;
 
     if (currentSong) setSongHistory((prev) => [currentSong, ...prev]);
 
@@ -322,7 +325,10 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
       setCurrentSong(next);
       setNextSongs(remaining);
     }
-  };
+
+    audio.currentTime = 0;
+    if (play) audio.play();
+  }, [currentSong]);
 
   // Plays the last song from the songHistory list
   const playLast = () => {
@@ -332,12 +338,24 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
       audio.currentTime = 0
       return;
     }
-    
+
     const [last, ...remaining] = songHistory;
 
     setNextSongs((prev) => [currentSong, ...prev]);
     setCurrentSong(last);
     setSongHistory(remaining);
+  };
+
+  // Plays the given song from the nextSongs list
+  const playSongInList = (song: SongType) => {
+    if (nextSongs.length == 0 || !currentSong) return;
+    const index = nextSongs.indexOf(song);
+    const [next, ...remaining] = nextSongs.slice(index);
+
+    if (currentSong) setSongHistory(prev => [currentSong, ...prev]);
+
+    setCurrentSong(next);
+    setNextSongs(remaining);
   };
 
   // Appends the song to the start of the nextSongs array
@@ -403,6 +421,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
         toggleRepeat,
         playNext,
         playLast,
+        playSongInList,
         addNext,
         addLast,
       }}

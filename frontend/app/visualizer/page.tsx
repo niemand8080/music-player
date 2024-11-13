@@ -70,7 +70,7 @@ const Page = () => {
   // freqData[701-1023]  // Highs/Treble (~6kHz-20kHz)
 
   return (
-    <div className="w-screen h-screen items-center justify-center flex flex-col gap-2">
+    <div className="pl-40 w-screen h-screen items-center justify-center flex flex-col gap-2">
       <div className="rounded-lg overflow-clip border">
         <canvas ref={canvasRef} width={width} height={height} className="bg-background"></canvas>
       </div>

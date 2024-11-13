@@ -2,18 +2,17 @@
 import React, { useEffect, useState } from "react";
 import { Play, Pause, VolumeX, Volume, Volume1, Volume2 } from "lucide-react";
 import { useAudio } from "@/components/provider/audio-provider";
-import { usePathname } from "next/navigation";
-import { formatTime, getPageSetting } from "@/lib/utils";
+import { formatTime } from "@/lib/utils";
 import { ProgressBar } from "@/components/my-ui/progress-bar";
+import { useDisplay } from "@/components/provider/display-provider";
 
 export const Player = () => {
-  const pathname = usePathname();
-  if (getPageSetting(pathname, "playerHidden")) return null;
+  const { displayPlayer } = useDisplay();
 
   return (
     <div className="w-screen h-screen fixed top-14 left-0 pointer-events-none">
       <div className="max-w-xxl w-full h-[calc(100vh-3.5rem)] mx-auto relative">
-        <div className="absolute bottom-5 right-5 h-16 hidden xl:flex gap-5 pointer-events-auto items-center">
+        <div className={`absolute ${displayPlayer ? "bottom-3" : "-bottom-14 opacity-0"} right-3 transition-all duration-300 ease-in-out h-16 hidden xl:flex gap-5 pointer-events-auto items-center`}>
           <div className="min-w-96 h-14 border rounded-lg flex justify-between gap-5 items-center px-2">
             <AudioProgress />
             <PlayButtons />
@@ -62,7 +61,7 @@ export const AudioProgress = () => {
 
   return (
     <div className="flex flex-col items-center relative w-96 h-6 justify-between">
-      <div className="w-[calc(100%-2rem)] mx-auto mt-2 relative">
+      <div className="w-[calc(100%-1.3rem)] mx-auto mt-2 relative">
         <ProgressBar
           defaultProgress={100}
           currentProgress={timePercentage}
@@ -71,7 +70,7 @@ export const AudioProgress = () => {
           handleMouseUp={handleMouseUp}
         />
       </div>
-      <span className="absolute -bottom-3 text-sm text-secondary-foreground flex justify-between w-full">
+      <span className="absolute -bottom-3 text-sm text-secondary-foreground flex justify-between w-full no-select">
         <span>{formatTime(currentTime)}</span>
         <span>-{formatTime(songDuration - currentTime)}</span>
       </span>
@@ -146,7 +145,7 @@ export const PlayButtons: React.FC = () => {
             setCountLeft((prev) => prev + 1);
             setTimeout(() => setCountLeft((prev) => prev + 1), 100);
           }}
-          className="group relative hidden sm:flex items-center hover:text-primary rotate-180 disabled:text-secondary-foreground"
+          className="group relative hidden sm:flex items-center hover:text-primary opacity-90 rotate-180 disabled:text-secondary-foreground"
         >
           <Play
             size={20}
@@ -189,7 +188,7 @@ export const PlayButtons: React.FC = () => {
         {/* Play Pause */}
         <button
           onClick={togglePlayPause}
-          className="relative flex items-center justify-center hover:text-primary"
+          className="relative flex items-center justify-center hover:text-primary opacity-90"
         >
           <Play
             size={28}
@@ -218,7 +217,7 @@ export const PlayButtons: React.FC = () => {
             setCountRight((prev) => prev + 1);
             setTimeout(() => setCountRight((prev) => prev + 1), 100);
           }}
-          className="group relative flex items-center hover:text-primary disabled:text-secondary-foreground"
+          className="group relative flex items-center hover:text-primary opacity-90 disabled:text-secondary-foreground"
         >
           <Play
             size={20}
