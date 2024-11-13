@@ -6,36 +6,77 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Toggle } from "@/components/ui/toggle";
 import { formatTime, SongType } from "@/lib/utils";
-import { Infinity, Search, Shuffle, Repeat } from "lucide-react";
+import {
+  Infinity,
+  Search,
+  Shuffle,
+  Repeat,
+  X,
+  PanelLeftOpen,
+} from "lucide-react";
 import Image from "next/image";
 import React, { useState } from "react";
 import { SongWithContext } from "@/components/my-ui/song";
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from "@/components/ui/tooltip";
 
 export const SongList = () => {
   const { currentSong } = useAudio();
-  const { displaySongList, displayCurrentSong } = useDisplay();
+  const {
+    forceHideSongList,
+    forceHideCurrentSong,
+    displaySongList,
+    displayCurrentSong,
+    toggleDisplaySongList,
+  } = useDisplay();
 
   return (
     <div className="w-screen h-screen fixed top-14 left-0 pointer-events-none">
       <div className="max-w-xxl w-full h-[calc(100vh-3.5rem)] mx-auto relative">
-        <div className="absolute top-0 left-0 h-full w-96 pt-2 pl-3 pb-3 flex justify-between flex-col pointer-events-auto">
+        <Tooltip>
+          <TooltipTrigger
+            onClick={toggleDisplaySongList}
+            className={`
+              ${
+                !displaySongList && !forceHideSongList
+                  ? "pointer-events-auto"
+                  : "opacity-0 pointer-events-none translate-x-96"
+              } transition-all duration-300 ease-in-out border w-fit p-2 hover:text-primary rounded-md mt-2 ml-3`}
+          >
+            <PanelLeftOpen size={20} />
+          </TooltipTrigger>
+          <TooltipContent>Show List</TooltipContent>
+        </Tooltip>
+        <div className="absolute top-0 left-0 h-full w-96 pt-2 pl-3 pb-3 flex justify-between flex-col">
           <div
             className={`${
-              !displaySongList ? "-translate-x-[25rem] opacity-0" : "opacity-100 -translate-x-0"
-            } transition-all duration-300 ease-in-out relative w-full h-[calc(100%-4.8rem)] bg-popover/20 border rounded-lg flex flex-col z-10`}
+              !displaySongList || forceHideSongList
+                ? "-translate-x-[25rem] opacity-0"
+                : "opacity-100 -translate-x-0"
+            } transition-all duration-300 ease-in-out relative w-full h-[calc(100%-8.75rem)] bg-popover/20 border rounded-lg flex flex-col z-10 pointer-events-auto`}
           >
             <div className="absolute top-0 left-0 overflow-hidden rounded-lg backdrop-blur-sm w-full h-full align-bottom">
               <NextSongsList />
             </div>
           </div>
+
           <div
             className={`${
-              !displayCurrentSong ? "-translate-x-[25rem] opacity-0" : "opacity-100 -translate-x-0"
-            } transition-all duration-300 ease-in-out h-32 relative w-full bg-popover/20 border rounded-lg flex flex-col z-10 mt-3`}
+              !displayCurrentSong || forceHideCurrentSong
+                ? "-translate-x-[25rem] opacity-0"
+                : "opacity-100 -translate-x-0"
+            }
+            ${!displaySongList || forceHideSongList 
+              ? "h-16" 
+              : "h-32 border"
+            } transition-all duration-300 ease-in-out relative w-full bg-popover/20 rounded-lg flex flex-col z-10 mt-3 pointer-events-auto`}
           >
-            <SongListOptions />
+            <SongListOptions hidden={!displaySongList || forceHideSongList} />
             <div
-              className={`rounded-b-lg w-full h-16 bg-popover/20 backdrop-blur-sm flex items-center justify-center z-10`}
+              className={`${!displaySongList || forceHideSongList ? "rounded-lg" : "rounded-b-lg"} w-full h-16 bg-popover/20 backdrop-blur-sm flex items-center justify-center z-10`}
             >
               <CurrentSongDisplay song={currentSong} />
             </div>
@@ -48,8 +89,15 @@ export const SongList = () => {
 
 export const NextSongsList = () => {
   const { nextSongs } = useAudio();
+  const { toggleDisplaySongList } = useDisplay();
   return (
-    <div className="w-full h-full flex flex-col-reverse overflow-y-auto">
+    <div className="w-full h-full flex flex-col-reverse overflow-y-auto relative">
+      <button
+        onClick={toggleDisplaySongList}
+        className="absolute top-1 right-1 hover:text-foreground transition-all p-1 rounded-md text-secondary-foreground"
+      >
+        <X size={20} />
+      </button>
       {nextSongs.length > 0 ? (
         nextSongs.map((song, index) => (
           <div key={index} className="h-16">

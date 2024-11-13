@@ -14,6 +14,7 @@ import { Padding } from "./Padding";
 import { AlertSpammer } from "@/components/my-ui/alert-spammer";
 import { Background } from "./Background";
 import { SongList } from "./SongList";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -53,25 +54,27 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <AlertSpammer>
-            <UserProvider>
-              <SongActionProvider>
-                <Header />
-                <AudioProvider>
-                  <DisplayProvider>
-                    <Background />
-                    <Padding>
-                      <SongList />
-                      {children}
-                    </Padding>
-                    <Player />
-                  </DisplayProvider>
-                </AudioProvider>
-                <PageProtector />
-              </SongActionProvider>
-            </UserProvider>
-          </AlertSpammer>
-          <Toaster />
+          <TooltipProvider>
+            <AlertSpammer>
+              <UserProvider>
+                <SongActionProvider>
+                  <Header />
+                  <AudioProvider>
+                    <DisplayProvider>
+                      <Background />
+                      <Padding>
+                        <SongList />
+                        {children}
+                      </Padding>
+                      <Player />
+                    </DisplayProvider>
+                  </AudioProvider>
+                  <PageProtector />
+                </SongActionProvider>
+              </UserProvider>
+            </AlertSpammer>
+            <Toaster />
+          </TooltipProvider>
         </ThemeProvider>
       </body>
     </html>

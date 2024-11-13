@@ -7,9 +7,12 @@ interface DisplayContextProps {
   displayPlayer: boolean;
   displaySongList: boolean;
   displayCurrentSong: boolean;
-  setDisplayPlayer: (b: boolean) => void;
-  setDisplaySongList: (b: boolean) => void;
-  setDisplayCurrentSong: (b: boolean) => void;
+  forceHidePlayer: boolean;
+  forceHideSongList: boolean;
+  forceHideCurrentSong: boolean;
+  toggleDisplayPlayer: () => void;
+  toggleDisplaySongList: () => void;
+  toggleDisplayCurrentSong: () => void;
 }
 
 const DisplayContext = createContext<DisplayContextProps | undefined>(undefined);
@@ -19,13 +22,20 @@ export const DisplayProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [displayPlayer, setDisplayPlayer] = useState<boolean>(true);
   const [displaySongList, setDisplaySongList] = useState<boolean>(true);
   const [displayCurrentSong, setDisplayCurrentSong] = useState<boolean>(true);
+  const [forceHidePlayer, setForceHidePlayer] = useState<boolean>(false);
+  const [forceHideSongList, setForceHideSongList] = useState<boolean>(false);
+  const [forceHideCurrentSong, setForceHideCurrentSong] = useState<boolean>(false);
 
   useEffect(() => {
-    const display = !getPageSetting(pathname, 'playerHidden');
-    setDisplayPlayer(display);
-    setDisplaySongList(display);
-    setDisplayCurrentSong(display);
+    const display = !!getPageSetting(pathname, 'playerHidden');
+    setForceHidePlayer(display);
+    setForceHideSongList(display);
+    setForceHideCurrentSong(display);
   }, [pathname]);
+
+  const toggleDisplayPlayer = () => setDisplayPlayer(prev => !prev);
+  const toggleDisplaySongList = () => setDisplaySongList(prev => !prev);
+  const toggleDisplayCurrentSong = () => setDisplayCurrentSong(prev => !prev);
 
   return (
     <DisplayContext.Provider
@@ -33,9 +43,12 @@ export const DisplayProvider: React.FC<{ children: React.ReactNode }> = ({ child
         displayPlayer,
         displaySongList,
         displayCurrentSong,
-        setDisplayPlayer,
-        setDisplaySongList,
-        setDisplayCurrentSong,
+        forceHideCurrentSong,
+        forceHidePlayer,
+        forceHideSongList,
+        toggleDisplayPlayer,
+        toggleDisplaySongList,
+        toggleDisplayCurrentSong,
       }}
     >
       {children}

@@ -7,13 +7,19 @@ import { ProgressBar } from "@/components/my-ui/progress-bar";
 import { useDisplay } from "@/components/provider/display-provider";
 
 export const Player = () => {
-  const { displayPlayer } = useDisplay();
+  const { forceHidePlayer, displayPlayer } = useDisplay();
 
   return (
     <div className="w-screen h-screen fixed top-14 left-0 pointer-events-none">
       <div className="max-w-xxl w-full h-[calc(100vh-3.5rem)] mx-auto relative">
-        <div className={`absolute ${displayPlayer ? "bottom-3" : "-bottom-14 opacity-0"} right-3 transition-all duration-300 ease-in-out h-16 hidden xl:flex gap-5 pointer-events-auto items-center`}>
-          <div className="min-w-96 h-14 border rounded-lg flex justify-between gap-5 items-center px-2">
+        <div
+          className={`absolute ${
+            displayPlayer && !forceHidePlayer
+              ? "bottom-3"
+              : "-bottom-14 opacity-0"
+          } right-3 transition-all duration-300 ease-in-out h-16 hidden xl:flex gap-5 backdrop-blur-sm pointer-events-auto items-center`}
+        >
+          <div className="min-w-96 h-14 border bg-accent/0 rounded-lg flex justify-between gap-5 items-center px-2">
             <AudioProgress />
             <PlayButtons />
             <AudioVolume />

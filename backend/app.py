@@ -157,6 +157,31 @@ async def get_songs():
 
     return jsonify(result)
 
+@app.route('/api/update_listen_time', methods=['POST'])
+async def update_listen_time():
+    token = request.cookies.get('session_token')
+    track = request.json.get('track')
+    time = math.floor(int(request.json.get('time')))
+
+    if track is None:
+        return jsonify({ "error": "No track set" })
+    
+    await sql("""
+        UPDATE songs_data
+        SET listen_time_seconds = listen_time_seconds + ?
+        WHERE track_id = ?
+    """, [time, track])
+
+    updated = True
+
+    if track:
+        updated = await update_usd(token, track, 'listen_time_seconds', time, add=True)
+
+    if updated:
+        return jsonify({ "success": "Successfully updated listen time" })
+    else:
+        return jsonify({ "error": "Error changing user specific listen time" })
+
 current_track_id = ""
 
 @app.route('/api/play')
@@ -217,7 +242,7 @@ async def uusd():
 # usd is user song data
 USDType = Literal["last_played", "listen_time_seconds", "favorite", "rating", "skip_count", "first_played", "added_to_library"]
 
-async def update_usd(token: tuple[str, None], track_id: str, change: USDType, param: tuple[str, int]) -> bool:
+async def update_usd(token: tuple[str, None], track_id: str, change: USDType, param: tuple[str, int], add = False) -> bool:
     if token is None:
         logger.error("No token provided")
         return False
@@ -240,7 +265,10 @@ async def update_usd(token: tuple[str, None], track_id: str, change: USDType, pa
             return False
     
     try:
-        await sql(f"UPDATE user_song_data SET {change} = ? WHERE track_id = ? AND user_id = ?", [param, track_id, user_id])
+        if add or change == "listen_time_seconds":
+            await sql(f"UPDATE user_song_data SET {change} = ? WHERE track_id = ? AND user_id = ?", [param, track_id, user_id])
+        else:
+            await sql(f"UPDATE user_song_data SET {change} = {change} + ? WHERE track_id = ? AND user_id = ?", [param, track_id, user_id])
         return True
     except Exception as e:
         logger.error(f"Error updating user song data: {str(e)}")

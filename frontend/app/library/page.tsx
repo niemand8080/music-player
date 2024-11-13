@@ -50,7 +50,7 @@ export default function Page() {
   if (authorized == undefined) return;
 
   return (
-    <div className="flex h-full justify-center gap-5 max-w-[100vw] border">
+    <div className="flex h-full justify-center gap-5 max-w-[100vw]">
       <div className="container mx-auto transition-all">
         <DataTable
           columns={columns}

@@ -29,6 +29,8 @@ interface AudioContextType {
   nextSongs: SongType[];
   currentSong: SongType | undefined;
   songHistory: SongType[];
+  // Audio Statistic
+  listenTime: number;
   // Audio Controls
   setCurrentVolume: (volume: number) => void;
   togglePlayInfinity: () => void;
@@ -79,13 +81,16 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
   const [triedLoadingSessionData, setTriedLoadingSessionData] =
     useState<boolean>(false);
   const [savedTime, setSavedTime] = useState<number>();
+  // Audio Statistic
+  const [listenTime, setListenTime] = useState<number>(0);
 
-  const audioEnded = useCallback(() => {
-    // FIXME Play next Song on end
-    console.log(currentSong);
-    audioRef.current && audioRef.current.play()
-    playNext(true);
-  }, []);
+  // listen time
+  const timeUpdate = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    setCurrentTime(audio.currentTime);
+    setListenTime(prev => prev + 0.25);
+  };
 
   // Audio
   useEffect(() => {
@@ -113,8 +118,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
     setGain(gainNode);
     setSource(sourceNode);
 
-    audio.addEventListener("ended", audioEnded);
-    audio.addEventListener("timeupdate", () => setCurrentTime(audio.currentTime));
+    audio.addEventListener("timeupdate", timeUpdate);
     audio.addEventListener("durationchange", () => setSongDuration(audio.duration));
 
     loadSessionData();
@@ -122,11 +126,10 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
     return () => {
       audio.pause();
       audioRef.current = null;
-      audio.removeEventListener("ended", audioEnded);
-      audio.removeEventListener("timeupdate", () => setCurrentTime(audio.currentTime));
+      audio.removeEventListener("timeupdate", timeUpdate);
       audio.removeEventListener("durationchange", () => setSongDuration(audio.duration));
     };
-  }, [audioEnded]);
+  }, []);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -153,12 +156,25 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
     const wasPlaying = !audio.paused;
     audio.pause();
     audio.src = `https://192.168.7.146:8000/api/play?t=${currentSong.track_id}`;
-    console.log(currentSong, wasPlaying)
     if (wasPlaying) audio.play();
     api("/set_session_data", "POST", {
       items: [{ name: "currentTime", data: 0 }],
     });
   }, [currentSong]);
+
+  // audio ended Event Listener
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!currentSong || !audio) return;
+    
+    audio.addEventListener("ended", audioEnded);
+
+    return () => {
+      audio.removeEventListener("ended", audioEnded);
+    }
+  }, [currentSong, listenTime]);
+
+  const audioEnded = () => playNext(true);
 
   // API
   const getSongs = async (amount: number) => {
@@ -176,19 +192,12 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
   // session data
   useEffect(() => {
     if (!triedLoadingSessionData) return;
-    // console.log("nextSongs: ", nextSongs);
-    // console.log("currentSong: ", currentSong);
-    // console.log("songHistory: ", songHistory);
 
     updateSongData();
   }, [songHistory, currentSong, nextSongs]);
 
   useEffect(() => {
     if (!triedLoadingSessionData) return;
-    // console.log(`isShuffled: ${isShuffled}`);
-    // console.log(`isPlaying: ${isPlaying}`);
-    // console.log(`repeat: ${repeat}`);
-    // console.log(`playInfinity: ${playInfinity}`);
 
     updatePlayerSettingsData();
   }, [isShuffled, isPlaying, repeat, playInfinity]);
@@ -199,19 +208,21 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
     return () => {
       window.removeEventListener("beforeunload", updateSomeSessionData);
     };
-  }, []);
+  }, [listenTime]);
 
   const updateSomeSessionData = () => {
     const audio = audioRef.current;
     if (!audio) return;
-
-    console.log(currentVolume);
 
     sendBeacon("/set_session_data", {
       items: [
         {
           name: "currentTime",
           data: audio.currentTime,
+        },
+        {
+          name: "listenTime",
+          data: listenTime,
         },
       ],
     });
@@ -270,6 +281,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
       repeat,
       playInfinity,
       currentVolume,
+      listenTime,
     } = await api("/get_session_data", "POST");
 
     if (nextSongs) setNextSongs(nextSongs);
@@ -278,6 +290,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
 
     setSavedTime(Number(currentTime));
     setCurrentVolume(Number(currentVolume));
+    setListenTime(Number(listenTime));
 
     setIsShuffled(isShuffled);
     setIsPlaying(isPlaying);
@@ -308,8 +321,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
   // Plays the next song from the nextSong list
   const playNext = useCallback(async (play: boolean = false) => {
     const audio = audioRef.current;
-    console.log(nextSongs.length == 0 || !currentSong && !playInfinity && !play || !audio, currentSong);
     if (nextSongs.length == 0 || !currentSong && !playInfinity && !play || !audio) return;
+
+    await updateListenTime(currentSong);
 
     if (currentSong) setSongHistory((prev) => [currentSong, ...prev]);
 
@@ -328,16 +342,18 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
 
     audio.currentTime = 0;
     if (play) audio.play();
-  }, [currentSong]);
+  }, [currentSong, listenTime]);
 
   // Plays the last song from the songHistory list
-  const playLast = () => {
+  const playLast = async () => {
     const audio = audioRef.current;
     if (songHistory.length == 0 || !currentSong || !audio) return;
     if (audio.currentTime > 5) {
       audio.currentTime = 0
       return;
     }
+    
+    await updateListenTime(currentSong);
 
     const [last, ...remaining] = songHistory;
 
@@ -393,6 +409,17 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, [currentVolume, gain]);
 
+  // Listen time
+  const updateListenTime = async (song: SongType | undefined) => {
+    if (listenTime > 1 && song) {
+      const resp = await api('/update_listen_time', 'POST', {
+        track: song.track_id,
+        time: listenTime
+      });
+      setListenTime(0);
+    }
+  };
+
   return (
     <AudioContext.Provider
       value={{
@@ -413,6 +440,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
         nextSongs,
         currentSong,
         songHistory,
+        // Audio Statistic
+        listenTime,
         // Audio Controls
         setCurrentVolume,
         togglePlayInfinity,

@@ -82,7 +82,7 @@ export const Background = () => {
 
   return (
     <div
-      className={`w-screen h-screen fixed top-0 left-0 z-0`}
+      className={`w-screen h-screen fixed top-0 left-0 pointer-events-none`}
       style={{
         backgroundImage: `linear-gradient(45deg, 
           hsl(${currentHsl[0]} ${currentHsl[1]} ${currentHsl[2]} / 0.1) 0%, 
