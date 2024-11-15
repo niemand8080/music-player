@@ -393,6 +393,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
     if (!gain || currentVolume == undefined) return;
     gain.gain.value = parseFloat(String(currentVolume / 100));
 
+    console.log(currentVolume)
+
     const timeoutId = setTimeout(() => {
       sendBeacon("/set_session_data", {
         items: [
@@ -412,7 +414,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
   // Listen time
   const updateListenTime = async (song: SongType | undefined) => {
     if (listenTime > 1 && song) {
-      const resp = await api('/update_listen_time', 'POST', {
+      await api('/update_listen_time', 'POST', {
         track: song.track_id,
         time: listenTime
       });

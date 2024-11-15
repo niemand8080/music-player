@@ -1,6 +1,6 @@
 "use client"
 import { api, SongType } from "@/lib/utils"
-import React, { createContext, useContext, useState } from "react"
+import React, { createContext, useContext } from "react"
 import { useUser } from "./user-provider";
 import { useAlert } from "./alert-provider";
 

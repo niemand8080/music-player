@@ -1,17 +1,34 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { Play, Pause, VolumeX, Volume, Volume1, Volume2 } from "lucide-react";
+import { Play, Pause, VolumeX, Volume, Volume1, Volume2, EyeOff, PanelBottomOpen } from "lucide-react";
 import { useAudio } from "@/components/provider/audio-provider";
 import { formatTime } from "@/lib/utils";
 import { ProgressBar } from "@/components/my-ui/progress-bar";
 import { useDisplay } from "@/components/provider/display-provider";
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from "@/components/ui/context-menu";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 export const Player = () => {
-  const { forceHidePlayer, displayPlayer } = useDisplay();
+  const { forceHidePlayer, displayPlayer, toggleDisplayPlayer } = useDisplay();
 
   return (
     <div className="w-screen h-screen fixed top-14 left-0 pointer-events-none">
       <div className="max-w-xxl w-full h-[calc(100vh-3.5rem)] mx-auto relative">
+        <Tooltip>
+          <TooltipTrigger
+            onClick={toggleDisplayPlayer}
+            className={`absolute right-3 ${
+              !displayPlayer || forceHidePlayer 
+              ? "bottom-3 pointer-events-auto"
+              : "bottom-20 opacity-0 pointer-events-none"
+            } border rounded-md transition-all backdrop-blur-sm duration-300 p-2 flex items-center justify-center hover:text-primary`}
+          >
+            <PanelBottomOpen size={24} />
+          </TooltipTrigger>
+          <TooltipContent>
+            Show Player
+          </TooltipContent>
+        </Tooltip>
         <div
           className={`absolute ${
             displayPlayer && !forceHidePlayer
@@ -19,11 +36,21 @@ export const Player = () => {
               : "-bottom-14 opacity-0"
           } right-3 transition-all duration-300 ease-in-out h-16 hidden xl:flex gap-5 backdrop-blur-sm pointer-events-auto items-center`}
         >
-          <div className="min-w-96 h-14 border bg-accent/0 rounded-lg flex justify-between gap-5 items-center px-2">
-            <AudioProgress />
-            <PlayButtons />
-            <AudioVolume />
-          </div>
+          <ContextMenu>
+            <ContextMenuTrigger>
+              <div className="min-w-96 h-14 border bg-accent/0 rounded-lg flex justify-between gap-5 items-center px-2">
+                <AudioProgress />
+                <PlayButtons />
+                <AudioVolume />
+              </div>
+            </ContextMenuTrigger>
+            <ContextMenuContent>
+              <ContextMenuItem onClick={toggleDisplayPlayer} className="group flex gap-1">
+                <EyeOff size={16} className="group-hover:text-primary" />
+                Hide
+              </ContextMenuItem>
+            </ContextMenuContent>
+          </ContextMenu>
         </div>
       </div>
     </div>

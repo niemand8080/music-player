@@ -1,5 +1,5 @@
 import axios from "axios";
-import convert from "color-convert"
+import convert from "color-convert";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -258,10 +258,7 @@ export const api = async (
 };
 
 // sendBeacon
-export const sendBeacon = (
-  path: string,
-  data: { [key: string]: unknown }
-) => {
+export const sendBeacon = (path: string, data: { [key: string]: unknown }) => {
   const json = JSON.stringify(data);
   const blob = new Blob([json], { type: "application/json" });
   navigator.sendBeacon(process.env.NEXT_PUBLIC_API_URL + path, blob);
@@ -278,9 +275,7 @@ export interface AlertType {
 }
 
 // Image
-export async function getAvgHsl(
-  src: string
-): Promise<string> {
+export async function getAvgHsl(src: string): Promise<string> {
   /* https://stackoverflow.com/questions/2541481/get-average-color-of-image-via-javascript (modified) */
   return new Promise((resolve) => {
     const context = document.createElement("canvas").getContext("2d");
@@ -298,3 +293,40 @@ export async function getAvgHsl(
     };
   });
 }
+
+// sort/filter
+export const simpleFilter = (
+  f: string,
+  inArr: SongType[],
+): SongType[] => {
+  const filters = f
+    .toLowerCase()
+    .replaceAll(/[\(\)\/\-{}\[|\]]/g, " ")
+    .split(" ")
+    .filter((s) => s !== "");
+
+  return inArr
+    .map(song => {
+      const songText = `${song.name} ${song.artist_name}`
+        .toLowerCase()
+        .replace(/[\(\)\/\-{}\[|\]]/g, " ");
+      
+      let score = 0;
+      
+      filters.forEach(filter => {
+        if (songText.includes(` ${filter} `)) {
+          score += 10;
+        } else {
+          const words = songText.split(" ").filter(s => s !== "");
+          for (const word of words) {
+            if (word.startsWith(filter)) score += 5;
+          }
+        }
+      });
+      console.log(score, `${song.name} ${song.artist_name}`)
+      return { song, score };
+    })
+    .filter(item => item.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .map(item => item.song);
+};
