@@ -9,7 +9,6 @@ import { DisplayProvider } from "@/components/provider/display-provider";
 import Header from "./Header";
 import { Toaster } from "@/components/ui/toaster";
 import { PageProtector } from "./PageProtector";
-import { Player } from "./Player";
 import { Padding } from "./Padding";
 import { AlertSpammer } from "@/components/my-ui/alert-spammer";
 import { Background } from "./Background";
@@ -66,7 +65,6 @@ export default function RootLayout({
                         <SongList />
                         {children}
                       </Padding>
-                      <Player />
                     </DisplayProvider>
                   </AudioProvider>
                   <PageProtector />

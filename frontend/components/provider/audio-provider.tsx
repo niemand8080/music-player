@@ -289,8 +289,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
     if (songHistory) setSongHistory(songHistory);
 
     if (currentTime) setSavedTime(Number(currentTime));
-    if (currentVolume) setCurrentVolume(Number(currentVolume));
     if (listenTime) setListenTime(Number(listenTime));
+    if (currentVolume) setCurrentVolume(Number(currentVolume));
+    else setCurrentVolume(100);
 
     if (isShuffled) setIsShuffled(isShuffled);
     if (isPlaying) setIsPlaying(isPlaying);

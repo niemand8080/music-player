@@ -15,8 +15,8 @@ export const Padding: React.FC<{ children: React.ReactNode }> = ({
       <div className="h-14 w-full" />
       <div
         className={`${
-          displaySongList ? "pl-[25.5rem]" : "pl-3"
-        } transition-all duration-300 ease-in-out w-full h-[calc(100vh-3.5rem)] pr-5`}
+          displaySongList ? "md:pl-[25.5rem]" : "pl-3"
+        } transition-all duration-300 w-full h-[calc(100vh-3.5rem)] md:pr-5`}
       >
         {children}
       </div>

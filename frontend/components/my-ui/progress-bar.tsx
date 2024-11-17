@@ -8,13 +8,14 @@ interface ProgressBarProps {
   currentProgress: number;
   vertical?: boolean;
   className?: string;
+  progressBg?: string;
   updateProgress: (progress: number) => void;
   handleMouseDown?: () => void;
   handleMouseUp?: () => void;
   setDragging?: (dragging: boolean) => void;
 }
 
-export const ProgressBar: React.FC<ProgressBarProps> = ({ vertical, className, loading, defaultProgress, currentProgress, updateProgress, handleMouseDown, handleMouseUp, setDragging }) => {
+export const ProgressBar: React.FC<ProgressBarProps> = ({ vertical, className, progressBg, loading, defaultProgress, currentProgress, updateProgress, handleMouseDown, handleMouseUp, setDragging }) => {
   const [progress, setProgress] = useState<number>(0);
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [isMoving, setIsMoving] = useState<boolean>(false);
@@ -66,13 +67,32 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({ vertical, className, l
     if (handleMouseUp) handleMouseUp();
   }, [handleMouseUp]);
 
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    setIsDragging(true);
+    const xy = vertical ? e.touches[0].clientY : e.touches[0].clientX;
+    updateBarProgress(xy);
+    if (handleMouseDown) handleMouseDown();
+  }, [updateBarProgress, handleMouseDown, vertical]);
+
+  const handleTouchMove = useCallback((e: TouchEvent) => {
+    if (isDragging) {
+      setIsMoving(true);
+      const xy = vertical ? e.touches[0].clientY : e.touches[0].clientX;
+      updateBarProgress(xy);
+    }
+  }, [isDragging, updateBarProgress, vertical]);
+
   useEffect(() => {
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUpIntern);
+    document.addEventListener('touchmove', handleTouchMove);
+    document.addEventListener('touchend', handleMouseUpIntern);
 
     return () => {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUpIntern);
+      document.removeEventListener('touchmove', handleTouchMove);
+      document.removeEventListener('touchend', handleMouseUpIntern);
     };
   }, [handleMouseMove, handleMouseUpIntern]);
 
@@ -104,7 +124,8 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({ vertical, className, l
       aria-valuenow={progress}
       tabIndex={0}
       onMouseDown={handleMouseDownIntern}
-      className={`${className} ${isDragging ? classes["2"] : classes["1.5"]} overflow-hidden ${classes.full} rounded-full bg-secondary cursor-pointer transition-all`}
+      onTouchStart={handleTouchStart}
+      className={`${className} ${isDragging ? classes["2"] : classes["1.5"]} ${progressBg ? progressBg : "bg-secondary"} overflow-hidden ${classes.full} rounded-full cursor-pointer transition-all`}
     >
       <div 
         className={`${isDragging ? classes["2"] : classes["1.5"]} ${isMoving ? "" : "transition-all"} bg-primary`}
