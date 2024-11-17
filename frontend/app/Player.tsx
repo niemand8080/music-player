@@ -6,42 +6,42 @@ import { formatTime } from "@/lib/utils";
 import { ProgressBar } from "@/components/my-ui/progress-bar";
 import { useDisplay } from "@/components/provider/display-provider";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from "@/components/ui/context-menu";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { TheTooltip } from "@/components/my-ui/the-tooltip";
 
 export const Player = () => {
   const { forceHidePlayer, displayPlayer, toggleDisplayPlayer } = useDisplay();
 
   return (
-    <div className="w-screen h-screen fixed top-14 left-0 pointer-events-none">
+    <div className="w-screen h-screen fixed top-14 left-0 pointer-events-none hidden xl:block">
       <div className="max-w-xxl w-full h-[calc(100vh-3.5rem)] mx-auto relative">
-        <Tooltip>
-          <TooltipTrigger
-            onClick={toggleDisplayPlayer}
-            className={`absolute right-3 ${
-              !displayPlayer || forceHidePlayer 
-              ? "bottom-3 pointer-events-auto"
-              : "bottom-20 opacity-0 pointer-events-none"
-            } border rounded-md transition-all backdrop-blur-sm duration-300 p-2 flex items-center justify-center hover:text-primary`}
-          >
-            <PanelBottomOpen size={24} />
-          </TooltipTrigger>
-          <TooltipContent>
-            Show Player
-          </TooltipContent>
-        </Tooltip>
+        <TheTooltip
+          text={"Show Player"}
+          triggerClick={toggleDisplayPlayer}
+          triggerClass={`absolute right-3 ${
+            !displayPlayer || forceHidePlayer 
+            ? "bottom-3 pointer-events-auto"
+            : "bottom-20 opacity-0 pointer-events-none"
+          } border rounded-md transition-all backdrop-blur-sm duration-300 p-2 flex items-center justify-center hover:text-primary`}
+        >
+          <PanelBottomOpen size={20} />
+        </TheTooltip>
         <div
           className={`absolute ${
             displayPlayer && !forceHidePlayer
               ? "bottom-3"
               : "-bottom-14 opacity-0"
-          } right-3 transition-all duration-300 ease-in-out h-16 hidden xl:flex gap-5 backdrop-blur-sm pointer-events-auto items-center`}
+          } right-3 transition-all duration-300 ease-in-out h-16 flex gap-5 backdrop-blur-sm pointer-events-auto items-center`}
         >
           <ContextMenu>
             <ContextMenuTrigger>
               <div className="min-w-96 h-14 border bg-accent/0 rounded-lg flex justify-between gap-5 items-center px-2">
-                <AudioProgress />
+                <div className="w-96">
+                  <AudioProgress />
+                </div>
                 <PlayButtons />
-                <AudioVolume />
+                <div className="w-36">
+                  <AudioVolume />
+                </div>
               </div>
             </ContextMenuTrigger>
             <ContextMenuContent>
@@ -93,7 +93,7 @@ export const AudioProgress = () => {
   }, [currentTime, audioRef]);
 
   return (
-    <div className="flex flex-col items-center relative w-96 h-6 justify-between">
+    <div className="flex flex-col items-center relative w-full h-6 justify-between">
       <div className="w-[calc(100%-1.3rem)] mx-auto mt-2 relative">
         <ProgressBar
           defaultProgress={100}
@@ -115,7 +115,7 @@ export const AudioVolume = () => {
   const { currentVolume, setCurrentVolume } = useAudio();
 
   return (
-    <div className="flex items-center gap-2 relative w-36">
+    <div className="flex items-center gap-2 relative w-full">
       <div className="relative flex items-center justify-center">
         <VolumeX
           size={24}

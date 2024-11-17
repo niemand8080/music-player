@@ -17,11 +17,12 @@ import {
 import Image from "next/image";
 import React, { useEffect, useState } from "react";
 import { SongWithContext } from "@/components/my-ui/song";
-import {
-  Tooltip,
-  TooltipTrigger,
-  TooltipContent,
-} from "@/components/ui/tooltip";
+import { 
+  AudioProgress,
+  AudioVolume,
+  PlayButtons
+} from './Player';
+import { TheTooltip } from "@/components/my-ui/the-tooltip";
 
 export const SongList = () => {
   const { currentSong } = useAudio();
@@ -35,29 +36,27 @@ export const SongList = () => {
   const [filter, setFilter] = useState<string>("");
 
   return (
-    <div className="w-screen h-screen fixed top-14 left-0 pointer-events-none">
+    <div className="w-screen h-screen fixed top-14 left-0 pointer-events-none z-30">
       <div className="max-w-xxl w-full h-[calc(100vh-3.5rem)] mx-auto relative">
-        <Tooltip>
-          <TooltipTrigger
-            onClick={toggleDisplaySongList}
-            className={`
-              ${
-                !displaySongList && !forceHideSongList
-                  ? "pointer-events-auto"
-                  : "opacity-0 pointer-events-none translate-x-96"
-              } transition-all duration-300 ease-in-out border w-fit p-2 hover:text-primary rounded-md mt-2 ml-3`}
-          >
-            <PanelLeftOpen size={20} />
-          </TooltipTrigger>
-          <TooltipContent>Show List</TooltipContent>
-        </Tooltip>
+        <TheTooltip 
+          text={"Show List"}
+          triggerClick={toggleDisplaySongList}
+          triggerClass={`
+            ${
+              !displaySongList && !forceHideSongList
+                ? "pointer-events-auto"
+                : "opacity-0 pointer-events-none translate-x-96"
+            } transition-all duration-300 ease-in-out border w-fit p-2 hover:text-primary rounded-md mt-2 ml-3`}
+        >
+          <PanelLeftOpen size={20} />
+        </TheTooltip>
         <div className="absolute top-0 left-0 h-full w-96 pt-2 pl-3 pb-3 flex justify-between flex-col">
           <div
             className={`${
               !displaySongList || forceHideSongList
                 ? "-translate-x-[25rem] opacity-0"
                 : "opacity-100 -translate-x-0"
-            } transition-all duration-300 ease-in-out relative w-full h-[calc(100%-8.25rem)] bg-popover/20 border rounded-lg flex flex-col z-10 pointer-events-auto`}
+            } transition-all duration-300 ease-in-out relative w-full h-[calc(100%-28.25rem)] xl:h-[calc(100%-8.25rem)] bg-popover/20 border rounded-lg flex flex-col pointer-events-auto`}
           >
             <div className="absolute top-0 left-0 overflow-hidden rounded-lg backdrop-blur-sm w-full h-full align-bottom">
               <NextSongsList filter={filter} />
@@ -71,8 +70,8 @@ export const SongList = () => {
                 : "opacity-100 -translate-x-0"
             }
             ${
-              !displaySongList || forceHideSongList ? "h-16 border" : "h-[7.5rem] border"
-            } transition-all duration-300 ease-in-out relative w-full bg-popover/20 rounded-lg flex flex-col z-10 mt-3 pointer-events-auto`}
+              !displaySongList || forceHideSongList ? "h-92 xl:h-16 border" : "h-[27.5rem] xl:h-[7.5rem] border"
+            } transition-all duration-300 backdrop-blur-sm ease-in-out relative w-full bg-popover/20 rounded-lg justify-between xl:justify-normal flex flex-col mt-3 pointer-events-auto`}
           >
             <SongListOptions
               hidden={!displaySongList || forceHideSongList}
@@ -81,12 +80,13 @@ export const SongList = () => {
             <div
               className={`${
                 !displaySongList || forceHideSongList
-                  ? "rounded-lg border-b"
-                  : "rounded-b-lg h-16"
-              } w-full bg-popover/20 backdrop-blur-sm flex items-center justify-center z-10`}
+                  ? "xl:rounded-lg rounded-t-lg xl:border-b h-64 xl:h-auto"
+                  : "xl:rounded-b-lg h-64 xl:h-16"
+              } w-full flex items-center justify-center`}
             >
               <CurrentSongDisplay song={currentSong} />
             </div>
+            <CompactPlayer />
           </div>
         </div>
       </div>
@@ -94,7 +94,23 @@ export const SongList = () => {
   );
 };
 
-export const NextSongsList: React.FC<{ filter: string }> = ({
+const CompactPlayer = () => {
+  return (
+    <div className="h-32 w-full flex flex-col justify-around xl:hidden">
+      <div className="px-4">
+        <AudioProgress />
+      </div>
+      <div className="mx-auto">
+        <PlayButtons />
+      </div>
+      <div className="px-4">
+        <AudioVolume />
+      </div>
+    </div>
+  )
+}
+
+const NextSongsList: React.FC<{ filter: string }> = ({
   filter,
 }) => {
   const { nextSongs } = useAudio();
@@ -147,7 +163,7 @@ export const NextSongsList: React.FC<{ filter: string }> = ({
   );
 };
 
-export const SongDisplay: React.FC<{ song: SongType | undefined }> = ({
+const SongDisplay: React.FC<{ song: SongType | undefined }> = ({
   song,
 }) => {
   const { playSongInList } = useAudio();
@@ -170,10 +186,7 @@ export const SongDisplay: React.FC<{ song: SongType | undefined }> = ({
       >
         <div className="w-12 h-12 min-w-12 min-h-12 relative">
           <Image
-            src={
-              song.img_url ||
-              "https://niemand8080.de/db/images/Super%20Mario%20World%20Game%20Over%20LoFi%20Hip%20Hop%20Remix.png"
-            }
+            src={song.img_url}
             alt="Song Cover"
             onLoad={() => setImageLoaded(true)}
             width={48}
@@ -201,7 +214,7 @@ export const SongDisplay: React.FC<{ song: SongType | undefined }> = ({
   );
 };
 
-export const SongListOptions: React.FC<{
+const SongListOptions: React.FC<{
   hidden?: boolean;
   setFilter: (s: string) => void;
 }> = ({ hidden, setFilter }) => {
@@ -241,43 +254,49 @@ export const SongListOptions: React.FC<{
           className={`cursor-pointer absolute left-[10px] text-secondary-foreground peer-focus:text-foreground transition-all duration-300`}
         />
       </div>
-      <Toggle
-        pressed={playInfinity}
-        onPressedChange={togglePlayInfinity}
-        value="infinity"
-        variant={"primary"}
-      >
-        <Infinity size={20} className="w-4 h-4" />
-      </Toggle>
-      <Toggle
-        pressed={isShuffled}
-        onPressedChange={toggleIsShuffled}
-        value="shuffle"
-        variant={"primary"}
-      >
-        <Shuffle size={20} className="w-4 h-4" />
-      </Toggle>
-      <Toggle
-        pressed={repeat}
-        onPressedChange={toggleRepeat}
-        value="repeat"
-        variant={"primary"}
-      >
-        <Repeat size={20} className="w-4 h-4" />
-      </Toggle>
+      <TheTooltip text="Play Infinity">
+        <Toggle
+          pressed={playInfinity}
+          onPressedChange={togglePlayInfinity}
+          value="infinity"
+          variant={"primary"}
+        >
+          <Infinity size={20} className="w-4 h-4" />
+        </Toggle>
+      </TheTooltip>
+      <TheTooltip text="Shuffle">
+        <Toggle
+          pressed={isShuffled}
+          onPressedChange={toggleIsShuffled}
+          value="shuffle"
+          variant={"primary"}
+        >
+          <Shuffle size={20} className="w-4 h-4" />
+        </Toggle>
+      </TheTooltip>
+      <TheTooltip text="Repeat"> 
+        <Toggle
+          pressed={repeat}
+          onPressedChange={toggleRepeat}
+          value="repeat"
+          variant={"primary"}
+        >
+          <Repeat size={20} className="w-4 h-4" />
+        </Toggle>
+      </TheTooltip>
     </div>
   );
 };
 
-export const CurrentSongDisplay: React.FC<{ song: SongType | undefined }> = ({
+const CurrentSongDisplay: React.FC<{ song: SongType | undefined }> = ({
   song,
 }) => {
   const [imageLoaded, setImageLoaded] = useState<boolean>(false);
   if (!song)
     return (
-      <div className="w-full h-full rounded-md flex gap-3 p-2">
-        <Skeleton className="w-12 h-12 rounded-md" />
-        <div className="gap-2 flex flex-col h-12 justify-center">
+      <div className="w-full h-full rounded-md flex flex-col xl:flex-row items-center p-5 pt-3 pb-0 xl:p-2 gap-3">
+        <Skeleton className="w-40 h-40 xl:w-12 xl:h-12 rounded-md" />
+        <div className="gap-2 flex flex-col h-12 justify-center mr-auto">
           <Skeleton className="h-4 w-64" />
           <Skeleton className="h-4 w-44" />
         </div>
@@ -285,20 +304,17 @@ export const CurrentSongDisplay: React.FC<{ song: SongType | undefined }> = ({
     );
 
   return (
-    <div className="w-full h-full rounded-md flex items-center p-2 gap-3">
-      <div className="w-12 h-12 min-w-12 min-h-12 relative">
+    <div className="w-full h-full rounded-md flex flex-col xl:flex-row items-center p-5 pt-3 pb-0 xl:p-2 gap-3">
+      <div className="w-12 h-12 hidden xl:block min-w-12 min-h-12 relative">
         <Image
-          src={
-            song.img_url ||
-            "https://niemand8080.de/db/images/Super%20Mario%20World%20Game%20Over%20LoFi%20Hip%20Hop%20Remix.png"
-          }
+          src={song.img_url}
           alt="Song Cover"
           onLoad={() => setImageLoaded(true)}
           width={48}
           height={48}
           className={`${
             imageLoaded ? "opacity-100" : "opacity-0"
-          } absolute rounded-md`}
+          } absolute rounded-md z-20`}
         />
         <Skeleton
           className={`${
@@ -306,8 +322,25 @@ export const CurrentSongDisplay: React.FC<{ song: SongType | undefined }> = ({
           } absolute h-12 w-12 rounded-md`}
         />
       </div>
+      <div className="w-40 h-40 xl:hidden min-w-40 min-h-40 relative">
+        <Image
+          src={song.img_url}
+          alt="Song Cover"
+          onLoad={() => setImageLoaded(true)}
+          width={160}
+          height={160}
+          className={`${
+            imageLoaded ? "opacity-100" : "opacity-0"
+          } absolute rounded-md z-20`}
+        />
+        <Skeleton
+          className={`${
+            imageLoaded ? "opacity-0" : "opacity-100"
+          } absolute h-40 w-40 rounded-md`}
+        />
+      </div>
       <div className="flex justify-between w-full h-full">
-        <div className="flex flex-col h-full justify-center w-[calc(100%-1.5rem)]">
+        <div className="flex flex-col h-full justify-center xl:w-[calc(100%-1.5rem)]">
           <h1 className="truncate w-[262px] font-bold">{song.name}</h1>
           <h2 className="truncate w-[262px] text-secondary-foreground">
             {song.artist_name}

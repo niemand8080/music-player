@@ -41,9 +41,11 @@ ROOT_PATH = os.environ.get("ROOT_PATH")
 ENV_DIR = f"{ROOT_PATH}{os.environ.get('ENV_DIR')}"
 MUSIC_DIR = f"{ROOT_PATH}{os.environ.get('MUSIC_DIR')}"
 DB_FILE = f"{ENV_DIR}/data/music.db"
+
 IMAGES_DIR = f"{ROOT_PATH}{os.environ.get('IMAGES_DIR')}"
-PROFILE_IMAGES_DIR = f"{IMAGES_DIR}{os.environ.get('PROFILE_IMAGES_DIR')}"
-NOTFOUND_IMAGES_DIR = f"{IMAGES_DIR}{os.environ.get('NOTFOUND_IMAGES_DIR')}"
+RANDOM_IMAGES_DIR = f"{IMAGES_DIR}/Random"
+PROFILE_IMAGES_DIR = f"{IMAGES_DIR}/Profile"
+NOTFOUND_IMAGES_DIR = f"{IMAGES_DIR}/NotFound"
 
 GMAIL = os.environ.get('GMAIL')
 GMAIL_PASSWORD = os.environ.get('GMAIL_PASSWORD')
@@ -143,7 +145,7 @@ async def search_in_db():
     return jsonify(result)
 
 @app.route('/api/songs', methods=['GET'])
-async def get_songs():
+async def songs():
     token = request.cookies.get('session_token')
     max_amount = request.args.get('a')
 
@@ -153,9 +155,8 @@ async def get_songs():
         max_amount = -1
     
     songs = await get_songs(token, max_amount)
-    result = format_namedtuple(songs)
 
-    return jsonify(result)
+    return jsonify(songs)
 
 @app.route('/api/update_listen_time', methods=['POST'])
 async def update_listen_time():
@@ -335,7 +336,7 @@ async def get_songs(token: str, max_amount = -1):
                 ORDER BY RANDOM()
                 LIMIT ?
             """, [max_amount], fetch_results=True)
-    return songs
+    return add_random_image(format_namedtuple(songs))
 
 async def get_song(track_id: str, token: str):
     song = None
@@ -398,7 +399,7 @@ async def get_song(track_id: str, token: str):
                 WHERE track_id = ?
                 LIMIT 1
             """, [track_id], fetch_results=True)[0]
-    return song
+    return add_random_image(format_namedtuple(song))
 ##D --------------------------USER MUSIC---------------------------
 
 ##U -----------------------------USER------------------------------
@@ -686,7 +687,7 @@ async def create_user(username: str, email: str, password: str):
         verify_code = generate_verification_code()
         code_expiry = get_time(5 * 60)
         img_rel_path = get_random_img_rel_path(PROFILE_IMAGES_DIR)
-        img_url = f"https://192.168.7.146:8000/api/img/{urllib.parse.quote(img_rel_path)}"
+        img_url = f"https://{IP_ADDRESS}:8000/api/img/{urllib.parse.quote(img_rel_path)}"
         
         created = await sql(""" 
             INSERT INTO user
@@ -866,6 +867,21 @@ def get_random_img_rel_path(path: str):
 
         return rel_path
 
+def add_random_image(songs):
+    imgs = [
+        f"https://{IP_ADDRESS}:8000/api/img/Random/{file}" 
+        for file in os.listdir(RANDOM_IMAGES_DIR) 
+        if os.path.isfile(os.path.join(RANDOM_IMAGES_DIR, file))
+    ]
+    for song in songs:
+        img_url = song.get('img_url')
+        if img_url:
+            continue
+        random_int = math.floor(random.random() * len(imgs))
+        song['img_url'] = imgs[random_int]
+        print(imgs[random_int])
+    return songs
+
 async def sql(query: str, params=None, fetch_results=False, fetch_success=False, max_retries=5):
     for attempt in range(max_retries):
         try:
@@ -913,10 +929,13 @@ async def sql(query: str, params=None, fetch_results=False, fetch_success=False,
     return False if fetch_success else None
 ##G -----------------------------GLOBAL----------------------------
 
-if __name__ == '__main__':    
+if __name__ == '__main__':
+    os.makedirs(RANDOM_IMAGES_DIR, exist_ok=True)
+    os.makedirs(PROFILE_IMAGES_DIR, exist_ok=True)
+    os.makedirs(NOTFOUND_IMAGES_DIR, exist_ok=True)
     try:
         app.run(
-            host='192.168.7.146',
+            host=IP_ADDRESS,
             port=8000,
             debug=True,
             ssl_context=('cert.pem', 'key.pem')

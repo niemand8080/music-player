@@ -118,11 +118,6 @@ light           240 5.9% 10%
   }
   body {
     @apply text-foreground bg-background;
-/*     
-    @apply text-foreground bg-background backdrop-blur-[250px];
-    background-image: url("https://niemand8080.de/db/images/Super%20Mario%20World%20Game%20Over%20LoFi%20Hip%20Hop%20Remix.png");
-    background-size: cover;
-    */
   }
   
   .pos-center {

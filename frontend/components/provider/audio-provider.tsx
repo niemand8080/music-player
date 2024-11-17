@@ -68,7 +68,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
   // Audio States
   const [currentVolume, setCurrentVolume] = useState<number>();
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
-  const [playInfinity, setPlayInfinity] = useState<boolean>(false);
+  const [playInfinity, setPlayInfinity] = useState<boolean>(true);
   const [isShuffled, setIsShuffled] = useState<boolean>(false);
   const [repeat, setRepeat] = useState<boolean>(false);
   const [currentTime, setCurrentTime] = useState<number>(0);
@@ -288,14 +288,14 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
     if (currentSong) setCurrentSong(currentSong);
     if (songHistory) setSongHistory(songHistory);
 
-    setSavedTime(Number(currentTime));
-    setCurrentVolume(Number(currentVolume));
-    setListenTime(Number(listenTime));
+    if (currentTime) setSavedTime(Number(currentTime));
+    if (currentVolume) setCurrentVolume(Number(currentVolume));
+    if (listenTime) setListenTime(Number(listenTime));
 
-    setIsShuffled(isShuffled);
-    setIsPlaying(isPlaying);
-    setRepeat(repeat);
-    setPlayInfinity(playInfinity);
+    if (isShuffled) setIsShuffled(isShuffled);
+    if (isPlaying) setIsPlaying(isPlaying);
+    if (repeat) setRepeat(repeat);
+    if (playInfinity) setPlayInfinity(playInfinity);
 
     setTriedLoadingSessionData(true);
   };
@@ -321,7 +321,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
   // Plays the next song from the nextSong list
   const playNext = useCallback(async (play: boolean = false) => {
     const audio = audioRef.current;
-    if (nextSongs.length == 0 || !currentSong && !playInfinity && !play || !audio) return;
+    if ((nextSongs.length == 0 || !currentSong) && !playInfinity && !play || !audio) return;
 
     await updateListenTime(currentSong);
 

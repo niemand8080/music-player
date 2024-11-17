@@ -24,7 +24,7 @@ export type SongType = {
   last_played: number;
   path: string;
   yt_link: string | null;
-  img_url: string | null;
+  img_url: string;
   // uuid
   uuid: string;
   // if logged in
@@ -323,7 +323,6 @@ export const simpleFilter = (
           }
         }
       });
-      console.log(score, `${song.name} ${song.artist_name}`)
       return { song, score };
     })
     .filter(item => item.score > 0)

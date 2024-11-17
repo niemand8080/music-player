@@ -8,7 +8,13 @@ const nextConfig = {
         hostname: "niemand8080.de",
         port: '',
         pathname: '/**'
-      }
+      },
+      {
+        protocol: "https",
+        hostname: "192.168.7.146",
+        port: '8000',
+        pathname: '/api/**'
+      },
     ]
   }
 };
