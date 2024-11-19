@@ -141,7 +141,9 @@ type PageType = {
     | "user-plus"
     | "badge-check"
     | "fingerprint"
-    | "heart";
+    | "heart"
+    | "settings"
+    | "dollar-sign";
 };
 
 export const pageSettings: PageType[] = [
@@ -214,6 +216,20 @@ export const pageSettings: PageType[] = [
     playerHidden: false,
     noPadding: false,
     icon: "heart",
+  },
+  {
+    path: "/settings",
+    simpleHeader: true,
+    playerHidden: true,
+    noPadding: false,
+    icon: "settings",
+  },
+  {
+    path: "/subscriptions",
+    simpleHeader: true,
+    playerHidden: true,
+    noPadding: false,
+    icon: "dollar-sign",
   },
 ];
 

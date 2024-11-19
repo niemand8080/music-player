@@ -109,10 +109,10 @@ export const SongList = () => {
           text={"Show Player"}
           triggerClick={toggleDisplayPlayer}
           triggerClass={`absolute right-3 ${
-            !displayPlayer || forceHidePlayer 
-            ? "xl:bottom-3 xl:opacity-100 xl:pointer-events-auto"
+            !displayPlayer && !forceHidePlayer 
+            ? "xl:bottom-3 xl:opacity-100 xl:pointer-events-auto hover:text-primary"
             : "xl:bottom-20 xl:opacity-0 xl:pointer-events-none"
-          } border rounded-md transition-all opacity-0 backdrop-blur-sm duration-300 p-2 flex items-center justify-center hover:text-primary`}
+          } border rounded-md transition-all opacity-0 backdrop-blur-sm duration-300 p-2 flex items-center justify-center`}
         >
           <PanelBottomOpen size={20} />
         </TheTooltip>
@@ -230,6 +230,7 @@ const SongListOptions: React.FC<{
         onPressedChange={toggleIsShuffled}
         value="shuffle"
         variant={"primary"}
+        disabled
       >
         <Shuffle size={20} className="w-4 h-4" />
       </Toggle>
@@ -238,6 +239,7 @@ const SongListOptions: React.FC<{
         onPressedChange={toggleRepeat}
         value="repeat"
         variant={"primary"}
+        disabled
       >
         <Repeat size={20} className="w-4 h-4" />
       </Toggle>

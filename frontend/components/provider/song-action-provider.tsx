@@ -21,8 +21,8 @@ export const SongActionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const updated = await updateUSD(song.track_id, "added_to_library", newValue)
     if (updated) {
       song.added_to_library = newValue;
-      if (newValue) newAlert("Added to Library", undefined, 2000, "success");
-      else newAlert("Removed from Library", undefined, 2000, "success");
+      if (newValue) newAlert("success", "Added to Library");
+      else newAlert("success", "Removed from Library");
     }
   };
 
@@ -31,8 +31,8 @@ export const SongActionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const newValue = !song.favorite;
     const updated = await updateUSD(song.track_id, "favorite", newValue)
     if (updated) song.favorite = newValue;
-    if (newValue) newAlert("Marked Favorite", undefined, 2000, "success");
-    else newAlert("Favorite Revoked", undefined, 2000, "success");
+    if (newValue) newAlert("success", "Marked Favorite");
+    else newAlert("success", "Favorite Revoked");
   }
 
   return (

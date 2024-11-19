@@ -80,6 +80,7 @@ light           240 5.9% 10%
     --error: 0 72% 51%;
     --error-foreground: 0 0% 98%;
     --skeleton: 240 5.9% 10%;
+    --success: 142 71% 45%;
   }
   .dark {
     --background: 240 10% 3.9%;
@@ -109,6 +110,7 @@ light           240 5.9% 10%
     --error: 0 72% 51%;
     --error-foreground: 0 0% 98%;
     --skeleton: 0 0% 98%;
+    --success: 142 71% 45%;
   }
 }
 

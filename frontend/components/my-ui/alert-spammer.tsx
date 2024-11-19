@@ -66,15 +66,20 @@ const Alert: React.FC<{
   const { removeAlert } = useAlert();
   const router = useRouter();
   const { title, type, displayTime, path } = alert;
-  const color =
-    type == "default"
-      ? "secondary"
-      : type == "success"
-      ? "primary"
-      : "destructive";
-  
+  const [extraClasses, setExtraClasses] = useState<string>("");
+
   const [display, setDisplay] = useState<"" | "displaying" | "hide">("");
   const [timeLeft, setTimeLeft] = useState<number>();
+
+  useEffect(() => {
+    const color =
+      type == "default"
+        ? "secondary"
+        : type == "success"
+        ? "success"
+        : "destructive";
+    setExtraClasses(`hover:shadow-${color}/30 border-${color} shadow-${color}/50 hover:bg-${color}`)
+  }, [type]);
 
   useEffect(() => {
     setTimeLeft(displayTime + 300);
@@ -101,8 +106,10 @@ const Alert: React.FC<{
     };
   }, [timeLeft, stopCountdown, alert, display, removeAlert]);
 
+  if (extraClasses == "") return null;
+
   return (
-    <button
+    <div
       onClick={() => path && router.push(path)}
       onMouseLeave={onMouseLeave}
       onMouseOver={onMouseOver}
@@ -110,9 +117,9 @@ const Alert: React.FC<{
         ${display == "" ? "scale-0 opacity-0" : ""}
         ${display == "hide" || isTransitioning ? "opacity-0 -translate-y-24 scale-90" : ""}
         ${display == "displaying" && !isTransitioning ? "opacity-100 scale-100 shadow-md" : ""}
-        fixed top-12 left-1/2 border border-${color} -translate-x-1/2 z-40 rounded-lg p-2 h-10 w-56 
-        cursor-pointer hover:scale-105 transition-all duration-300 hover:bg-${color} 
-        hover:shadow-lg hover:shadow-primary/30 bg-background justify-between flex items-center shadow-primary/50`}
+        fixed top-12 left-1/2 border -translate-x-1/2 z-[999999999999] pointer-events-auto rounded-lg p-2 h-10 w-56 
+        cursor-pointer hover:scale-105 transition-all duration-300 bg-background justify-between flex items-center 
+        hover:shadow-lg ${extraClasses}`}
     >
       <span>{title}</span>
       <Button 
@@ -126,6 +133,6 @@ const Alert: React.FC<{
       >
         <X size={20} />
       </Button>
-    </button>
+    </div>
   );
 };

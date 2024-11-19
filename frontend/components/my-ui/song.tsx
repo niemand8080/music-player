@@ -290,12 +290,11 @@ export const CurrentSongDisplay: React.FC<{
             {song.artist_name}
           </h2>
         </div>
-        {options ||
-          (big && (
-            <div className={big && "absolute right-0 bottom-0"}>
-              <SongOptions song={song} />
-            </div>
-          ))}
+        {(options || big) && (
+          <div className={`${big ? "bottom-0" : "top-1/2 -translate-y-1/2"} absolute right-0`}>
+            <SongOptions song={song} />
+          </div>
+        )}
       </div>
     </div>
   );

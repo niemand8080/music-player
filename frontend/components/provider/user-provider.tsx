@@ -5,6 +5,8 @@ import axios from "axios";
 import { ToastAction } from "../ui/toast";
 import { usePathname, useRouter } from "next/navigation";
 
+export type Subscriptions = "Echo" | "Nova" | "Prism" | "Zenith";
+
 export type UserType = {
   created_at: number;
   email: string;
@@ -13,6 +15,9 @@ export type UserType = {
   img_url: string;
   fallback: string;
   id: number;
+  description: string;
+  tags: string[];
+  subscription: Subscriptions;
 };
 
 interface UserContextType {
@@ -49,7 +54,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
         );
         const user = response.data.user;
         if (user) {
-          const newUser = {
+          const newUser: UserType = {
             created_at: user.created_at,
             email: user.email,
             username: user.username,
@@ -57,6 +62,9 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
             img_url: user.img_url,
             fallback: getAvatarFallback(user.username),
             id: user.id,
+            description: user.description,
+            tags: user.tags && user.tags.split(", "), 
+            subscription: user.subscription,
           };
           setUser(newUser);
         } else {
@@ -172,11 +180,8 @@ export const logOut = async () => {
         withCredentials: true,
       }
     );
-
-    toast({
-      title: "Successfully logged out",
-      description: "You can now change account",
-    });
+    
+    window.location.reload();
   } catch (error) {
     console.error("Error: " + error);
     toast({

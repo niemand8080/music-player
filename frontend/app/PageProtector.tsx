@@ -28,10 +28,11 @@ const protectedPages: ProtectedPageType[] = [
 
 export const PageProtector = () => {
   const pathname = usePathname();
-  const { user } = useUser();
+  const { user, authorized } = useUser();
   const [currentPP, setCurrentPP] = useState<ProtectedPageType>();
 
   useEffect(() => {
+    if (authorized == undefined) return;
     if (user) {
       setCurrentPP(undefined);
       return;
@@ -40,7 +41,7 @@ export const PageProtector = () => {
     setCurrentPP(undefined);
     if (!page) return;
     setCurrentPP(page);
-  }, [pathname, user]);
+  }, [pathname, user, authorized]);
 
   return (
     <AlertDialog open={!!currentPP}>

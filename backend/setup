@@ -192,6 +192,9 @@ CREATE TABLE IF NOT EXISTS user (
   password TEXT NOT NULL,
   created_at INTEGER,
   last_login INTEGER,
+  description TEXT,
+  tags TEXT,
+  subscription TEXT,  
   img_url TEXT,
   verified INTEGER DEFAULT 0,
   verify_email_code TEXT,
@@ -252,6 +255,18 @@ CREATE TABLE IF NOT EXISTS user_session_data (
     REFERENCES user_sessions(session_token)
     ON DELETE CASCADE
   UNIQUE (name, session_token)
+);
+"
+# Create codes table
+sqlite3 $DB_FILE "
+CREATE TABLE IF NOT EXISTS codes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER,
+  purpose TEXT,
+  code TEXT,
+  expiry INTEGER,
+  FOREIGN KEY (user_id) REFERENCES user(id),
+  UNIQUE (user_id, purpose)
 );
 "
 

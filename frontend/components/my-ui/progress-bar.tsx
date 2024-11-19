@@ -94,7 +94,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({ vertical, className, p
       document.removeEventListener('touchmove', handleTouchMove);
       document.removeEventListener('touchend', handleMouseUpIntern);
     };
-  }, [handleMouseMove, handleMouseUpIntern]);
+  }, [handleMouseMove, handleMouseUpIntern, handleTouchMove]);
 
   useEffect(() => {
     setProgress(defaultProgress);

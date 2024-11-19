@@ -12,6 +12,8 @@ import {
   BadgeCheck,
   Fingerprint,
   Heart,
+  Settings,
+  DollarSign,
 } from "lucide-react";
 import Link from "next/link";
 import { ResponsiveHeaderLinks } from "@/components/my-ui/responsive-header-link";
@@ -120,6 +122,18 @@ const HeaderIcon: React.FC<{ advanced?: boolean }> = ({ advanced }) => {
         size={16}
         className={`${className} ${
           icon != "heart" && "opacity-0 scale-0"
+        }`}
+      />
+      <Settings
+        size={16}
+        className={`${className} ${
+          icon != "settings" && "opacity-0 scale-0"
+        }`}
+      />
+      <DollarSign
+        size={16}
+        className={`${className} ${
+          icon != "dollar-sign" && "opacity-0 scale-0"
         }`}
       />
     </div>

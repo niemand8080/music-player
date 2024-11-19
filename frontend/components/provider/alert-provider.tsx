@@ -3,7 +3,7 @@ import { AlertType } from "@/lib/utils";
 import React, { createContext, useContext, useState } from "react"
 
 interface AlertContextProps {
-  newAlert: (title: JSX.Element | string, path?: string, displayMS?: number, type?: "default" | "success" | "error") => void;
+  newAlert: (type: "default" | "success" | "error", title: JSX.Element | string, path?: string, displayMS?: number) => void;
   removeAlert: (alert: AlertType) => void;
   alerts: AlertType[];
 }
@@ -13,7 +13,7 @@ const AlertContext = createContext<AlertContextProps | undefined>(undefined);
 export const AlertProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [alerts, setAlerts] = useState<AlertType[]>([]);
   
-  const newAlert = (title: JSX.Element | string, path?: string, displayMS = 2000, type: "default" | "success" | "error" = "default") => {
+  const newAlert = (type: "default" | "success" | "error", title: JSX.Element | string, path?: string, displayMS = 2000) => {
     const newAlert: AlertType = {
       title: title,
       type: type,

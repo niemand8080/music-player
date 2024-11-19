@@ -105,7 +105,7 @@ const Page: React.FC = () => {
     
     if (emailElement.value.length < 5) {
       emailElement.select();
-    } else if (usernameElement.value.length < 5) {
+    } else if (usernameElement.value == "") {
       usernameElement.select();
     } else if (passwordElement.value.length < 3) {
       passwordElement.select();

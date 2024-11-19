@@ -2,6 +2,7 @@
 import os
 import json
 import math
+import re
 import time
 import random 
 import string
@@ -249,7 +250,7 @@ async def update_usd(token: tuple[str, None], track_id: str, change: USDType, pa
         return False
 
     user = await get_user(token)
-    if not user:
+    if user is None:
         logger.error(f"No user found for token: {token}")
         return False
 
@@ -279,7 +280,7 @@ async def get_songs(token: str, max_amount = -1):
     songs = None
     if token is not None:
         user = await get_user(token)
-        if user:
+        if user is not None:
             songs = await sql("""
                 SELECT 
                     s.file_exists,
@@ -310,7 +311,7 @@ async def get_songs(token: str, max_amount = -1):
                 LEFT JOIN user_song_data ud ON ud.track_id = s.track_id AND ud.user_id = ?
                 ORDER BY RANDOM()
                 LIMIT ?
-            """, [user.id, max_amount], fetch_results=True)
+            """, [user['id'], max_amount], fetch_results=True)
     if songs is None:
         songs = await sql("""
                 SELECT 
@@ -342,7 +343,7 @@ async def get_song(track_id: str, token: str):
     song = None
     if token is not None:
         user = await get_user(token)
-        if user:
+        if user is not None:
             song = await sql("""
                 SELECT 
                     s.file_exists,
@@ -373,7 +374,7 @@ async def get_song(track_id: str, token: str):
                 LEFT JOIN user_song_data ud ON ud.track_id = s.track_id AND ud.user_id = ?
                 WHERE track_id
                 LIMIT 1
-            """, [user.id, track_id], fetch_results=True)[0]
+            """, [user['id'], track_id], fetch_results=True)[0]
     if song is None:
         song = await sql("""
                 SELECT 
@@ -409,8 +410,9 @@ async def get_song(track_id: str, token: str):
 async def set_session_data():
     token = request.cookies.get('session_token')
     items = request.json.get('items')
-    
-    if token is None:
+    user = await get_user(token)
+
+    if user is None:
         return jsonify({ "error": "Unauthorized" })
     
     if items is None:
@@ -424,11 +426,14 @@ async def set_session_data():
         if not 'data' in item:
             logger.error(f"skipped {name} cuz its None")
             continue
+        json_data = json.dumps(data)
         db_call = await sql("""
-            INSERT OR REPLACE INTO user_session_data
+            INSERT INTO user_session_data
             (name, data, session_token)
             VALUES (?, ?, ?)
-        """, [name, json.dumps(data), token], fetch_success=True)
+            ON CONFLICT(name, session_token)
+            DO UPDATE SET data = ?
+        """, [name, json_data, token, json_data], fetch_success=True)
 
         if not db_call:
             error_count += 1
@@ -441,8 +446,9 @@ async def set_session_data():
 @app.route('/api/get_session_data', methods=['POST'])
 async def get_session_data():
     token = request.cookies.get('session_token')
-    
-    if token is None:
+    user = await get_user(token)
+
+    if user is None:
         return jsonify({ "error": "Unauthorized" })
     
     session_data = await sql("SELECT * FROM user_session_data WHERE session_token = ?", [token], fetch_results=True)
@@ -462,6 +468,23 @@ async def is_taken():
     value = data.get('value')
     exists = await sql("SELECT 1 FROM user WHERE username = ? OR email = ?", [value, value], fetch_success=True)
     return jsonify({ "exists": exists })
+
+@app.route('/api/valid', methods=['POST'])
+async def is_valid():
+    value = request.json.get('value')
+    value_type = request.json.get('type')
+
+    if value_type == "email":
+        matches = re.search("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", value)
+        
+        if matches is None:
+            return jsonify({ "valid": False, "message": "Not an valid email" })
+        
+        taken = await sql("SELECT 1 FROM user WHERE email = ?", [value], fetch_success=True)
+    elif value_type == "username":
+        taken = await sql("SELECT 1 FROM user WHERE username = ?", [value], fetch_success=True)
+    
+    return jsonify({ "valid": not taken })
 
 @app.route('/api/register_user', methods=['POST'])
 async def register_user():
@@ -511,10 +534,11 @@ async def protected():
 
     user = await get_user(token)
     
-    if user:
-        if get_time() > user.expiry:
+    if user is not None:
+        if get_time() > user['expiry']:
             return jsonify({'success': False, 'message': 'Session expired'})
-        return jsonify({'success': True, 'message': f'Access granted to {user.username}'})
+        username = user['username']
+        return jsonify({'success': True, 'message': f'Access granted to {username}'})
     else:
         return jsonify({'success': False, 'message': 'Unauthorized'})
 
@@ -570,12 +594,94 @@ async def user_data():
     
     user = await get_user(token)
 
-    if user:
-        return jsonify({"success": True, "user": format_namedtuple([user])[0]})
+    if user is not None:
+        return jsonify({"success": True, "user": user})
     else:
         return jsonify({"success": False})
 
-async def send_verification_email(to_email, username, verification_code):
+# Change user data
+@app.route('/api/send_reset_password_code', methods=['POST'])
+async def send_reset_password_code():
+    token = request.cookies.get('session_token')
+    user = await get_user(token)
+
+    if user is None:
+        return jsonify({ "error": "Unauthorized" })
+    
+    code = generate_verification_code(8)
+    
+    username = user['username']
+    expiry = get_time(5 * 60)
+
+    query = "INSERT INTO codes (user_id, purpose, code, expiry) VALUES (?,?,?,?)"
+    sql_success = await sql(query, [user['id'], "reset_pw", code, expiry], fetch_success=True)
+    if sql_success:
+        send_mail = await send_email(
+            user['email'],
+            "Reset Password",
+            f"Hello {username}, \n\nyour password reset code is: {code}\nThis code will expire in 5 minutes."
+        )
+
+        if send_mail:
+            return jsonify({ "success": "Successfully send reset code" })
+        else:
+            return jsonify({ "error": "Error sending password reset code" })
+    else:
+        return jsonify({ "error": "SQL error" })
+
+@app.route('/api/verify_reset_password_code', methods=['POST'])
+async def verify_reset_password_code():
+    code = request.json.get('code')
+    token = request.cookies.get('session_token')
+    user = await get_user(token)
+
+    if user is None:
+        return jsonify({ "error": "Unauthorized" })
+    
+    if code is None or len(code) < 8:
+        return jsonify({ "error": "No/to short code provided" })
+    
+    data = await sql("SELECT expiry FROM codes WHERE user_id = ? AND purpose = ? AND code = ?", [user['id'], "reset_pw", code], fetch_results=True)
+    
+    if data is None or data is []:
+        return jsonify({ "error": "Wrong code" })
+
+    data = format_namedtuple(data, first=True)
+
+    if int(data['expiry']) > get_time():
+        return jsonify({ "success": "Right code" })
+    else:
+        return jsonify({ "error": "Code expired" })
+    
+@app.route('/api/change_password', methods=['POST'])
+async def change_password():
+    token = request.cookies.get('session_token')
+    new_pw = request.json.get('newPassword')
+    code = request.json.get('code')
+    user = await get_user(token)
+
+    if user is None:
+        return jsonify({ "error": "Unauthorized" })
+    
+    if code is None or new_pw is None:
+        return jsonify({ "error": "Missing data" })
+    
+    deleted = await sql("DELETE FROM codes WHERE purpose = ? AND code = ? AND user_id = ?", ["reset_pw", code, user['id']], fetch_success=True)
+
+    if not deleted:
+        return jsonify({ "error": "This should not happen" })
+    
+    hashed_password = hash_password(new_pw)
+
+    updated_pw = await sql('UPDATE user SET password = ? WHERE id = ?', [hashed_password, user['id']], fetch_success=True)
+
+    if updated_pw:
+        return jsonify({ "success": "Successfully updated password" })
+    else:
+        return jsonify({ "error": "Error updating password" })
+
+
+async def send_email(to_email, subject, text):
     # Email configuration
     smtp_server = "smtp.gmail.com"
     smtp_port = 465  # Changed to 465 for SSL
@@ -586,12 +692,10 @@ async def send_verification_email(to_email, username, verification_code):
     message = MIMEMultipart()
     message["From"] = sender_email
     message["To"] = to_email
-    message["Subject"] = "Your Verification Code"
-
-    v_code = str(verification_code)
+    message["Subject"] = subject
 
     # Email body
-    body = f"Hello {username}, \n\nyour verification code is: {v_code}\nThis code will expire in 5 minutes."
+    body = text
     message.attach(MIMEText(body, "plain"))
 
     # Send email
@@ -601,11 +705,21 @@ async def send_verification_email(to_email, username, verification_code):
         await smtp_client.login(sender_email, sender_password)
         await smtp_client.send_message(message)
         await smtp_client.quit()
-        logger.debug("Verification email sent successfully")
+        logger.debug("Email sent successfully")
         return True
     except Exception as e:
         logger.error(f"Error sending email: {e}")
         return False
+
+async def send_verification_email(to_email, username, verification_code):
+    v_code = str(verification_code)
+    mail = await send_email(
+        to_email, 
+        "Your Verification Code", 
+        f"Hello {username}, \n\nyour verification code is: {v_code}\nThis code will expire in 5 minutes."
+    )
+    
+    return mail
 
 def generate_verification_code(length = 6) -> str:
     return ''.join(str(random.randint(0, 9)) for _ in range(length))
@@ -691,9 +805,9 @@ async def create_user(username: str, email: str, password: str):
         
         created = await sql(""" 
             INSERT INTO user
-            (username, email, password, created_at, verify_email_code, code_expiry, img_url)
-            VALUES (?,?,?,?,?,?,?)
-        """, [username, email, hashed_password, created_at, verify_code, code_expiry, img_url], fetch_success=True)
+            (username, email, password, created_at, verify_email_code, code_expiry, img_url, subscription)
+            VALUES (?,?,?,?,?,?,?,?)
+        """, [username, email, hashed_password, created_at, verify_code, code_expiry, img_url, "Echo"], fetch_success=True)
         
         if created == None:
             send_mail = await send_verification_email(email, username, verify_code)
@@ -731,14 +845,17 @@ async def get_user(token: str):
             u.email,
             u.created_at,
             u.verified,
-            u.img_url
+            u.img_url,
+            u.description,
+            u.tags,
+            u.subscription
         FROM user_sessions us
         INNER JOIN user u ON us.user_id = u.id
         WHERE us.session_token = ?
     """, [token], fetch_results=True)
 
     if users and users[0]:
-        return users[0]
+        return format_namedtuple(users)[0]
     return None
 ##U -----------------------------USER------------------------------
 
@@ -857,12 +974,14 @@ def get_random_img_rel_path(path: str):
     for root, _, files in os.walk(path):
         length = len(files)
         random_int = math.floor(random.random() * length)
-        rel_path = os.path.join(root, files[random_int])
+        path_basename = os.path.basename(path)
+        img_path = os.path.join(root, files[random_int])
+        rel_path = os.path.join(path_basename, files[random_int])
         count = 0
 
-        while os.path.exists(rel_path) == False and count < 11:
+        while os.path.exists(img_path) == False and count < 11:
             random_int = math.floor(random.random() * length)
-            path_basename = os.path.basename(path)
+            img_path = os.path.join(root, files[random_int])
             rel_path = os.path.join(path_basename, files[random_int])
 
         return rel_path
@@ -879,7 +998,6 @@ def add_random_image(songs):
             continue
         random_int = math.floor(random.random() * len(imgs))
         song['img_url'] = imgs[random_int]
-        print(imgs[random_int])
     return songs
 
 async def sql(query: str, params=None, fetch_results=False, fetch_success=False, max_retries=5):
@@ -898,7 +1016,8 @@ async def sql(query: str, params=None, fetch_results=False, fetch_success=False,
                     elif fetch_success:
                         results = await cursor.fetchall()
                         if query.strip().upper().startswith(("INSERT", "UPDATE", "DELETE")):
-                            return await connection.commit()
+                            await connection.commit()
+                            return True
                         else:
                             return bool(results)
                     else:
