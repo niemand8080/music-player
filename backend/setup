@@ -1,12 +1,14 @@
 #!/bin/bash
 
 SONGS="$HOME/Documents/pi/Data/Music/Songs"
+VIDEOS="$HOME/Documents/pi/Data/Music/Videos"
 ORIGINAL_FILES="$HOME/Documents/pi/Data/Music/Originals"
 MISSING_METADATA="$HOME/Documents/pi/Data/Music/Missing-Metadata"
 DB_FILE="$HOME/Documents/pi/python/envs/music-player/data/music.db"
 
 mkdir -p "$ORIGINAL_FILES"
 mkdir -p "$MISSING_METADATA"
+mkdir -p "$VIDEOS"
 
 RED='\033[31m'
 GREEN='\033[32m'
@@ -25,7 +27,8 @@ done
 
 printf "${CYAN}Convert files to mp3...${NC}\n"
 
-max_count="$(ls -l $SONGS/*.{opus,m4a} 2> /dev/null | wc -l | xargs)"
+all_count="$(ls -l $SONGS/*.mp3 $VIDEOS/*.mp4 2> /dev/null | wc -l | xargs)"
+max_convert_count="$(ls -l $SONGS/*.{opus,m4a} 2> /dev/null | wc -l | xargs)"
 convert_counter=1
 # converts files to mp3 while keeping metadata and moving original files
 for file in $SONGS/*.{m4a,opus}; do
@@ -34,7 +37,7 @@ for file in $SONGS/*.{m4a,opus}; do
   fi
   filename=$(basename "$file")
   dirname=$(dirname "$file")
-  echo "Converting ($convert_counter/$max_count): $file"
+  echo -ne "Converting ($convert_counter/$max_convert_count): $file"
 
   meta="-map_metadata 0:s:a:0"
   case $file in
@@ -51,7 +54,11 @@ for file in $SONGS/*.{m4a,opus}; do
     printf "${RED}Error converting:${NC} $filename\n"
     continue
   fi
-done 
+done
+
+if (($convert_counter > 1)); then
+  echo -e "\n"
+fi
 
 printf "${CYAN}Done converting files${NC}\n"
 
@@ -61,7 +68,7 @@ for file in $SONGS/Suno\ *.mp3; do
   fi
   if [ "$(ffprobe -loglevel error -show_entries format_tags=title -of default=noprint_wrappers=1:nokey=1 "$file")" == "" ]; then
     mv "$file" "$MISSING_METADATA"
-    ((max_count--))
+    ((all_count--))
   fi
 done
 
@@ -81,7 +88,7 @@ for file in $MISSING_METADATA/Suno\ -*.mp3; do
       rm "$file"
     fi
     mv "$new_file" "$SONGS"
-    ((max_count++))
+    ((all_count++))
   else
     printf "${RED}Error adding metadata:${NC} $filename\n"
     continue
@@ -91,7 +98,7 @@ done
 hashs=()
 
 printf "${CYAN}Adding track ids to array${NC}\n"
-
+counter=1
 for file in $SONGS/*.mp3; do
   if test ! -f "$file"; then  
     continue 
@@ -99,10 +106,29 @@ for file in $SONGS/*.mp3; do
   track="$(ffprobe -loglevel error -show_entries format_tags=track -of default=noprint_wrappers=1:nokey=1 "$file")"
   if [ "$track" != "" ]; then
     hashs+=("$track")
+    echo -ne "\r($counter/$all_count) -> added" 
+    ((counter++))
   fi
 done
 
-printf "${CYAN}Adding track id to each song if not present${NC}\n"
+for file in $VIDEOS/*.mp4; do
+  if test ! -f "$file"; then  
+    continue 
+  fi
+  # Get comment metadata
+  comment="$(ffprobe -loglevel error -show_entries format_tags=comment -of default=noprint_wrappers=1:nokey=1 "$file")"
+  # tr: replace ';' with "\n"
+  # grep gets the line where the line starts with (^) "track:"
+  # cut splits at ':' and gives second part (-f2)
+  track=$(echo "$comment" | tr ';' '\n' | grep "^track:" | cut -d':' -f2)
+  if [ "$track" != "" ]; then
+    echo -ne "\r($counter/$all_count) -> added" 
+    hashs+=("$track")
+    ((counter++))
+  fi
+done
+
+printf "\n${CYAN}Adding track id to each song/video if not present${NC}\n"
 
 # Add track (id) to each Song if not present
 counter=1
@@ -111,17 +137,22 @@ for file in $SONGS/*.mp3; do
   if test ! -f "$file"; then  
     continue 
   fi
+  basename=$(basename "$file")
+  display_name=${basename:0:50}
+  echo -ne "\r($add_counter/$all_count) -> add track ? : $display_name"
   if [ "$(ffprobe -loglevel error -show_entries format_tags=track -of default=noprint_wrappers=1:nokey=1 "$file")" == "" ]; then
+    echo -ne "\r($add_counter/$all_count) -> adding track: $display_name"
     sha="$(sha256sum "$file")"
-    track="${sha:0:8}"
+    track="s${sha:0:8}"
+
 
     while [[ ${hashs[@]} =~ $track ]]; do
       if (( $counter >= 56 )); then
-        echo "This is really unlikely..."
+        echo "$RED This is really unlikely...$NC"
         echo "File: $file"
         continue
       else
-        track="${sha:counter:$((8+counter))}"
+        track="s${sha:counter:$((8+counter))}"
         ((counter++))
       fi
     done
@@ -129,15 +160,60 @@ for file in $SONGS/*.mp3; do
     
     hashs+=("$track")
     
-    ffmpeg -loglevel error -i "$file" -metadata track="$track" -codec copy -f mp3 "${file}.tmp" && \
+    ffmpeg -loglevel error -i "$file" -metadata track="$track" -codec copy -f $file_ext "${file}.tmp" && \
     mv "${file}.tmp" "$file"
 
-    printf "${GREEN}($add_counter/$max_count) Added track ID $track to $(basename "$file")${NC}\n"
-    ((add_counter++))
+    printf "${GREEN}($add_counter/$all_count) Added track ID $track to $(basename "$file")${NC}\n"
   fi
+  ((add_counter++))
 done
 
-printf "${CYAN}Initialize DB${NC}\n"
+((add_counter--))
+# Add track id to videos if not present
+for file in $VIDEOS/*.mp4; do
+  if test ! -f "$file"; then  
+    continue 
+  fi
+  ((add_counter++))
+  basename=$(basename "$file")
+  display_name=${basename:0:50}
+  echo -ne "\r($add_counter/$all_count) -> add track ? : $display_name"
+
+  comment=$(ffprobe -loglevel error -show_entries format_tags=comment -of default=noprint_wrappers=1:nokey=1 "$file")
+
+  case $comment in
+    yt:*) continue;;
+  esac
+
+  echo -ne "\r($add_counter/$all_count) -> adding track: $display_name"
+
+  sha="$(sha256sum "$file")"
+  track="v${sha:0:8}"
+
+  while [[ ${hashs[@]} =~ $track ]]; do
+    if (( $counter >= 56 )); then
+      echo "This is really unlikely..."
+      echo "File: $file"
+      continue
+    else
+      track="v${sha:counter:$((8+counter))}"
+      ((counter++))
+    fi
+  done
+
+  new_comment="yt:$comment;track:$track"
+
+  counter=1
+
+  hashs+=("$track")
+  
+  ffmpeg -loglevel error -i "$file" -metadata comment="$new_comment" -codec copy -f mp4 "${file}.tmp" && \
+  mv "${file}.tmp" "$file"
+
+  printf "${GREEN}($add_counter/$all_count) Added track ID $track to $(basename "$file")${NC}\n"
+done
+
+printf "\n${CYAN}Initialize DB${NC}\n"
 
 # initialize DB
 sqlite3 $DB_FILE "PRAGMA foreign_keys = ON;"
@@ -146,7 +222,7 @@ sqlite3 $DB_FILE "PRAGMA foreign_keys = ON;"
 sqlite3 $DB_FILE "
 CREATE TABLE IF NOT EXISTS songs (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT NOT NULL,
+  name TEXT UNIQUE NOT NULL,
   artist_id TEXT,
   yt_link TEXT,
   date INTEGER,
@@ -162,7 +238,7 @@ CREATE TABLE IF NOT EXISTS songs (
 sqlite3 $DB_FILE "
 CREATE TABLE IF NOT EXISTS songs_data (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT NOT NULL,
+  name TEXT UNIQUE NOT NULL,
   artist_id TEXT,
   album TEXT,
   genre TEXT,
@@ -172,14 +248,15 @@ CREATE TABLE IF NOT EXISTS songs_data (
   track_id TEXT UNIQUE,
   img_url TEXT,
   FOREIGN KEY (artist_id) REFERENCES artists(artist_id),
-  FOREIGN KEY (track_id) REFERENCES songs(track_id)
+  FOREIGN KEY (track_id) REFERENCES songs(track_id) 
+    ON UPDATE CASCADE
 );
 "
 # Create artists table
 sqlite3 $DB_FILE "
 CREATE TABLE IF NOT EXISTS artists (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT NOT NULL,
+  name TEXT UNIQUE NOT NULL,
   artist_id TEXT UNIQUE NOT NULL
 );
 "
@@ -225,7 +302,8 @@ CREATE TABLE IF NOT EXISTS user_song_data (
   first_played INTEGER,
   added_to_library INTEGER DEFAULT 0,
   FOREIGN KEY (user_id) REFERENCES user(id),
-  FOREIGN KEY (track_id) REFERENCES songs(track_id),
+  FOREIGN KEY (track_id) REFERENCES songs(track_id)
+    ON UPDATE CASCADE,
   UNIQUE (user_id, track_id)
 );
 "
@@ -240,6 +318,7 @@ CREATE TABLE IF NOT EXISTS user_song_history (
   date INTEGER NOT NULL,
   FOREIGN KEY (user_id) REFERENCES user(id),
   FOREIGN KEY (track_id) REFERENCES songs(track_id)
+    ON UPDATE CASCADE
 );
 "
 # Create user_session_data table
@@ -270,6 +349,39 @@ CREATE TABLE IF NOT EXISTS codes (
 );
 "
 
+# Create videos table
+sqlite3 $DB_FILE "
+CREATE TABLE IF NOT EXISTS videos (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT UNIQUE NOT NULL,
+  artist_id TEXT,
+  yt_link TEXT,
+  date INTEGER,
+  track_id TEXT UNIQUE,
+  duration INTEGER,
+  added INTEGER,
+  rel_path TEXT,
+  file_exists INTEGER DEFAULT 1,
+  FOREIGN KEY (artist_id) REFERENCES artists(artist_id)
+);
+"
+
+# Create video_data table
+sqlite3 $DB_FILE "
+CREATE TABLE IF NOT EXISTS video_data (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT UNIQUE NOT NULL,
+  artist_id TEXT,
+  tags TEXT,
+  watch_time_seconds INTEGER DEFAULT 0,
+  last_played INTEGER DEFAULT 0,
+  track_id TEXT UNIQUE,
+  FOREIGN KEY (artist_id) REFERENCES artists(artist_id),
+  FOREIGN KEY (track_id) REFERENCES videos(track_id)
+    ON UPDATE CASCADE
+);
+"
+
 # Index for songs
 sqlite3 $DB_FILE "CREATE INDEX IF NOT EXISTS idx_songs_track_id ON songs(track_id);"
 # Index for song_data
@@ -289,5 +401,9 @@ sqlite3 $DB_FILE "CREATE INDEX IF NOT EXISTS idx_user_song_history_date ON user_
 # Index for user_session_data
 sqlite3 $DB_FILE "CREATE INDEX IF NOT EXISTS idx_user_session_data_data ON user_session_data(data);"
 sqlite3 $DB_FILE "CREATE INDEX IF NOT EXISTS idx_user_session_data_session_token ON user_session_data(session_token);"
+# Index for videos
+sqlite3 $DB_FILE "CREATE INDEX IF NOT EXISTS idx_videos_track_id ON videos(track_id);"
+# Index for video_data
+sqlite3 $DB_FILE "CREATE INDEX IF NOT EXISTS idx_videos_data_track_id ON video_data(track_id);"
 
 python "sort.py"
