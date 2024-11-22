@@ -127,7 +127,7 @@ async def write_db():
 
       # Create artist if not exists
       if artist_id == None:
-        artist_id = generateUID(artist, artist_ids)
+        artist_id = f"a{generateUID(artist, artist_ids)}"
         artist_ids.append(artist_id)
         artists[artist] = artist_id
         await sql("INSERT INTO artists (name, artist_id) VALUES (?, ?)", [artist, artist_id])

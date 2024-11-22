@@ -41,6 +41,7 @@ CORS(app, resources={r"/api/*": { "origins": FRONTEND_URL, "supports_credentials
 ROOT_PATH = os.environ.get("ROOT_PATH")
 ENV_DIR = f"{ROOT_PATH}{os.environ.get('ENV_DIR')}"
 MUSIC_DIR = f"{ROOT_PATH}{os.environ.get('MUSIC_DIR')}"
+VIDEOS_DIR = f"{ROOT_PATH}{os.environ.get('VIDEOS_DIR')}"
 DB_FILE = f"{ENV_DIR}/data/music.db"
 
 IMAGES_DIR = f"{ROOT_PATH}{os.environ.get('IMAGES_DIR')}"
@@ -60,7 +61,7 @@ class CustomFormatter(logging.Formatter):
     red = "\x1b[31;20m"
     bold_red = "\x1b[31;1m"
     reset = "\x1b[0m"
-    information = "\033[1m(line:%(lineno)d) %(asctime)s:\033[0m " # %(name)s / %(filename)s / %(levelname)s
+    information = "\033[1;32m(l:%(lineno)d):\033[0m " # %(name)s / %(filename)s / %(levelname)s / %(asctime)s
 
     FORMATS = {
         logging.DEBUG: information + grey + "%(message)s" + reset,
@@ -101,6 +102,191 @@ def get_img(path: str):
         return send_file(not_found_file)
 ##I -----------------------------IMAGE-----------------------------
 
+##V ----------------------------VIDEOS-----------------------------
+@app.route('/api/videos', methods=['GET'])
+async def videos():
+    token = request.cookies.get('session_token')
+    amount = request.args.get('a') or -1
+    
+    if amount is None or not int(amount):
+        return jsonify({ "error": "Invalid amount" })
+
+    videos = await get_videos(token, amount)
+
+    return jsonify(videos)
+
+@app.route('/api/watch', methods=['GET'])
+async def watch():
+    token = request.cookies.get('session_token')
+    track = request.args.get('t')
+    user = await get_user(token)
+    
+    video = await sql("SELECT * FROM videos WHERE track_id = ?", [track], fetch_results=True)
+
+    if len(video) <= 0:
+        return jsonify({ "error": "No video found" })
+
+    video = format_namedtuple(video, first=True)
+    full_path = os.path.join(VIDEOS_DIR, video['rel_path'])
+
+    await sql("UPDATE video_data SET last_played = ? WHERE track_id = ?", [get_time(), track])
+
+    if user is not None:
+        logger.debug(user['username'])
+        await update_uvd(token, track, "last_played", get_time())
+
+    return send_file(full_path)
+
+UVDType = Literal["last_played", "watch_time_seconds", "favorite", "rating", "first_played", "added_to_library"]
+
+async def update_uvd(token: tuple[str, None], track_id: str, change: UVDType, param: tuple[str, int]) -> bool:
+    if token is None:
+        logger.error("No token provided")
+        return False
+
+    user = await get_user(token)
+    if user is None:
+        logger.error(f"No user found for token: {token}")
+        return False
+
+    video = await sql("SELECT 1 FROM video_data WHERE track_id = ?", [track_id], fetch_success=True)
+    if not video:
+        logger.error(f"No Video found for track_id: {track_id}")
+        return False
+    
+    user_id = user['id']
+    uvd = await sql("SELECT 1 FROM user_video_data WHERE track_id = ? AND user_id = ?", [track_id, user_id], fetch_success=True)
+    if not uvd:
+        if await sql("INSERT INTO user_video_data (user_id, track_id) VALUES (?,?)", [user_id, track_id], fetch_success=True):
+            logger.error(f"Failed to create instance for: (user_id: {user_id}, track_id: {track_id})")
+            return False
+    
+    try:
+        if change == "watch_time_seconds":
+            await sql(f"UPDATE user_video_data SET {change} = {change} + ? WHERE track_id = ? AND user_id = ?", [param, track_id, user_id])
+        else:
+            await sql(f"UPDATE user_video_data SET {change} = ? WHERE track_id = ? AND user_id = ?", [param, track_id, user_id])
+        return True
+    except Exception as e:
+        logger.error(f"Error updating user video data: {str(e)}")
+        return False
+
+async def get_videos(token: str, max_amount = -1):
+    videos = None
+    if token is not None:
+        user = await get_user(token)
+        if user is not None:
+            videos = await sql("""
+                SELECT 
+                    v.file_exists,
+                    v.name,
+                    v.date,
+                    v.duration,
+                    v.added,
+                    v.track_id,
+                    v.yt_link,
+                    vd.artist_id,
+                    vd.tags,
+                    vd.watch_time_seconds,
+                    vd.last_played,
+                    a.name as artist_name,
+                    ud.favorite,
+                    ud.rating,
+                    ud.last_played as i_last_played,
+                    ud.added_to_library,
+                    ud.watch_time_seconds as my_watch_time_seconds
+                FROM videos v
+                LEFT JOIN video_data vd ON vd.track_id = v.track_id
+                LEFT JOIN artists a ON a.artist_id = vd.artist_id
+                LEFT JOIN user_video_data ud ON ud.track_id = v.track_id AND ud.user_id = ?
+                ORDER BY RANDOM()
+                LIMIT ?
+            """, [user['id'], max_amount], fetch_results=True)
+    if videos is None:
+        videos = await sql("""
+                SELECT 
+                    v.file_exists,
+                    v.name,
+                    v.date,
+                    v.duration,
+                    v.added,
+                    v.track_id,
+                    v.yt_link,
+                    vd.artist_id,
+                    vd.tags,
+                    vd.watch_time_seconds,
+                    vd.last_played,
+                    a.name as artist_name
+                FROM videos v
+                LEFT JOIN video_data vd ON vd.track_id = v.track_id
+                LEFT JOIN artists a ON a.artist_id = vd.artist_id
+                ORDER BY RANDOM()
+                LIMIT ?
+            """, [max_amount], fetch_results=True)
+    return format_namedtuple(videos)
+
+async def get_video(track_id: str, token: str):
+    video = None
+    logger.info(token)
+    if token is not None:
+        user = await get_user(token)
+        if user is not None:
+            video = await sql("""
+                SELECT 
+                    v.file_exists,
+                    v.name,
+                    v.date,
+                    v.duration,
+                    v.added,
+                    v.track_id,
+                    v.yt_link,
+                    vd.artist_id,
+                    vd.tags,
+                    vd.watch_time_seconds,
+                    vd.last_played,
+                    a.name as artist_name,
+                    ud.favorite,
+                    ud.rating,
+                    ud.last_played as i_last_played,
+                    ud.added_to_library,
+                    ud.watch_time_seconds as my_watch_time_seconds
+                FROM videos v
+                LEFT JOIN video_data vd ON vd.track_id = v.track_id
+                LEFT JOIN artists a ON a.artist_id = vd.artist_id
+                LEFT JOIN user_video_data ud ON ud.track_id = v.track_id AND ud.user_id = ?
+                ORDER BY RANDOM()
+                LIMIT 1
+            """, [user['id'], track_id], fetch_results=True)[0]
+    if video is None:
+        video = await sql("""
+                SELECT 
+                    v.file_exists,
+                    v.name,
+                    v.date,
+                    v.duration,
+                    v.added,
+                    v.track_id,
+                    v.yt_link,
+                    vd.artist_id,
+                    vd.tags,
+                    vd.watch_time_seconds,
+                    vd.last_played,
+                    a.name as artist_name,
+                    ud.favorite,
+                    ud.rating,
+                    ud.last_played as i_last_played,
+                    ud.added_to_library,
+                    ud.watch_time_seconds as my_watch_time_seconds
+                FROM videos v
+                LEFT JOIN video_data vd ON vd.track_id = v.track_id
+                LEFT JOIN artists a ON a.artist_id = vd.artist_id
+                LEFT JOIN user_video_data ud ON ud.track_id = v.track_id AND ud.user_id = ?
+                ORDER BY RANDOM()
+                LIMIT 1
+            """, [track_id], fetch_results=True)[0]
+    return format_namedtuple(video)
+##V ----------------------------VIDEOS-----------------------------
+
 ##M -----------------------------MUSIC-----------------------------
 # TODO
 @app.route('/api/search', methods=['GET'])
@@ -118,7 +304,6 @@ async def search_in_db():
             s.date,
             s.duration,
             s.added,
-            s.rel_path as path,
             s.track_id,
             s.yt_link,
             sd.artist_id,
@@ -184,6 +369,15 @@ async def update_listen_time():
     else:
         return jsonify({ "error": "Error changing user specific listen time" })
 
+@app.route('/api/get_song', methods=['GET'])
+async def get_song():
+    token = request.cookies.get('session_token')
+    track = request.args.get('t')
+
+    song = await get_song(track, token)
+
+    return jsonify(song)
+
 current_track_id = ""
 
 @app.route('/api/play')
@@ -244,7 +438,7 @@ async def uusd():
 # usd is user song data
 USDType = Literal["last_played", "listen_time_seconds", "favorite", "rating", "skip_count", "first_played", "added_to_library"]
 
-async def update_usd(token: tuple[str, None], track_id: str, change: USDType, param: tuple[str, int], add = False) -> bool:
+async def update_usd(token: tuple[str, None], track_id: str, change: USDType, param: tuple[str, int]) -> bool:
     if token is None:
         logger.error("No token provided")
         return False
@@ -267,7 +461,7 @@ async def update_usd(token: tuple[str, None], track_id: str, change: USDType, pa
             return False
     
     try:
-        if add or change == "listen_time_seconds":
+        if change == "listen_time_seconds":
             await sql(f"UPDATE user_song_data SET {change} = ? WHERE track_id = ? AND user_id = ?", [param, track_id, user_id])
         else:
             await sql(f"UPDATE user_song_data SET {change} = {change} + ? WHERE track_id = ? AND user_id = ?", [param, track_id, user_id])
@@ -288,7 +482,6 @@ async def get_songs(token: str, max_amount = -1):
                     s.date,
                     s.duration,
                     s.added,
-                    s.rel_path as path,
                     s.track_id,
                     s.yt_link,
                     sd.artist_id,
@@ -320,7 +513,6 @@ async def get_songs(token: str, max_amount = -1):
                     s.date,
                     s.duration,
                     s.added,
-                    s.rel_path as path,
                     s.track_id,
                     s.yt_link,
                     sd.artist_id,
@@ -341,6 +533,7 @@ async def get_songs(token: str, max_amount = -1):
 
 async def get_song(track_id: str, token: str):
     song = None
+    logger.info(token)
     if token is not None:
         user = await get_user(token)
         if user is not None:
@@ -351,7 +544,6 @@ async def get_song(track_id: str, token: str):
                     s.date,
                     s.duration,
                     s.added,
-                    s.rel_path as path,
                     s.track_id,
                     s.yt_link,
                     sd.artist_id,
@@ -383,7 +575,6 @@ async def get_song(track_id: str, token: str):
                     s.date,
                     s.duration,
                     s.added,
-                    s.rel_path as path,
                     s.track_id,
                     s.yt_link,
                     sd.artist_id,
@@ -1052,6 +1243,7 @@ if __name__ == '__main__':
     os.makedirs(RANDOM_IMAGES_DIR, exist_ok=True)
     os.makedirs(PROFILE_IMAGES_DIR, exist_ok=True)
     os.makedirs(NOTFOUND_IMAGES_DIR, exist_ok=True)
+    exec(open("backup.py").read())
     try:
         app.run(
             host=IP_ADDRESS,

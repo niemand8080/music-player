@@ -14,6 +14,8 @@ import {
   Heart,
   Settings,
   DollarSign,
+  Info,
+  TvMinimal,
 } from "lucide-react";
 import Link from "next/link";
 import { ResponsiveHeaderLinks } from "@/components/my-ui/responsive-header-link";
@@ -134,6 +136,18 @@ const HeaderIcon: React.FC<{ advanced?: boolean }> = ({ advanced }) => {
         size={16}
         className={`${className} ${
           icon != "dollar-sign" && "opacity-0 scale-0"
+        }`}
+      />
+      <Info
+        size={16}
+        className={`${className} ${
+          icon != "info" && "opacity-0 scale-0"
+        }`}
+      />
+      <TvMinimal
+        size={16}
+        className={`${className} ${
+          icon != "tv-minimal" && "opacity-0 scale-0"
         }`}
       />
     </div>

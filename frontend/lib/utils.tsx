@@ -22,7 +22,6 @@ export type SongType = {
   added: number;
   track_id: string;
   last_played: number;
-  path: string;
   yt_link: string | null;
   img_url: string;
   // uuid
@@ -50,7 +49,6 @@ export const sampleSong: SongType = {
   added: 0,
   track_id: "00000000",
   last_played: 0,
-  path: "Sample Song.mp3",
   yt_link: "https://www.youtube.com",
   img_url:
     "https://as1.ftcdn.net/v2/jpg/04/62/93/66/1000_F_462936689_BpEEcxfgMuYPfTaIAOC1tCDurmsno7Sp.jpg",
@@ -63,6 +61,31 @@ export const sampleSong: SongType = {
   skip_count: 0,
   my_listen_time_seconds: 0,
   added_to_library: false,
+};
+
+// Video
+export type VideoType = {
+  name: string;
+  file_exists: boolean;
+  artist_id: string;
+  artist_name: string | null;
+  tags: string[] | null;
+  birth_date: number;
+  duration: number;
+  watch_time_seconds: number;
+  added: number;
+  track_id: string;
+  last_played: number;
+  yt_link: string | null;
+  // uuid
+  uuid: string;
+  // if logged in
+  favorite: boolean | null;
+  rating: number | null;
+  i_last_played: number | null;
+  skip_count: number | null;
+  my_watch_time_seconds: number | null;
+  added_to_library: boolean | null;
 };
 
 // Time
@@ -127,7 +150,7 @@ export function download(
 
 // Page
 type PageType = {
-  path: string;
+  path: RegExp | string;
   simpleHeader: boolean;
   playerHidden: boolean;
   noPadding: boolean;
@@ -143,19 +166,14 @@ type PageType = {
     | "fingerprint"
     | "heart"
     | "settings"
-    | "dollar-sign";
+    | "dollar-sign"
+    | "info"
+    | "tv-minimal";
 };
 
 export const pageSettings: PageType[] = [
   {
-    path: "/auth",
-    simpleHeader: true,
-    playerHidden: true,
-    noPadding: true,
-    icon: "fingerprint",
-  },
-  {
-    path: "/auth/login",
+    path: /\/auth*/,
     simpleHeader: true,
     playerHidden: true,
     noPadding: true,
@@ -231,15 +249,39 @@ export const pageSettings: PageType[] = [
     noPadding: false,
     icon: "dollar-sign",
   },
+  {
+    path: /\/info\/*/,
+    simpleHeader: true,
+    playerHidden: true,
+    noPadding: false,
+    icon: "info",
+  },
+  {
+    path: /\/videos\/*/,
+    simpleHeader: true,
+    playerHidden: true,
+    noPadding: false,
+    icon: "tv-minimal",
+  },
+  {
+    path: /\/*/,
+    simpleHeader: false,
+    playerHidden: false,
+    noPadding: false,
+    icon: "music-2",
+  },
 ];
 
 export const getPageSetting = (
   pathname: string,
   setting: "simpleHeader" | "playerHidden" | "noPadding" | "icon"
 ): boolean | string => {
-  const page = pageSettings.filter((page) => page.path == pathname)[0];
-  if (setting == "icon" && !page) return "music-2";
-  else if (!page) return false;
+  const page = pageSettings.filter((page) => {
+    if (typeof page.path == "string") return page.path == pathname;
+    if (page.path.test(pathname)) return true;
+    else return false;
+  }).sort((a, b) => typeof a.path == "string" ? -1 : typeof b.path == "string" ? 1 : 0)[0];
+  if (!page) return false;
   return page[setting];
 };
 

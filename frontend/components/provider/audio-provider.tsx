@@ -394,8 +394,6 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
     if (!gain || currentVolume == undefined) return;
     gain.gain.value = parseFloat(String(currentVolume / 100));
 
-    console.log(currentVolume)
-
     const timeoutId = setTimeout(() => {
       sendBeacon("/set_session_data", {
         items: [

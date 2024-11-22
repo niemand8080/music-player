@@ -232,6 +232,7 @@ CREATE TABLE IF NOT EXISTS songs (
   rel_path TEXT,
   file_exists INTEGER DEFAULT 1,
   FOREIGN KEY (artist_id) REFERENCES artists(artist_id)
+    ON UPDATE CASCADE
 );
 "
 # Create songs_data table
@@ -247,7 +248,8 @@ CREATE TABLE IF NOT EXISTS songs_data (
   last_played INTEGER DEFAULT 0,
   track_id TEXT UNIQUE,
   img_url TEXT,
-  FOREIGN KEY (artist_id) REFERENCES artists(artist_id),
+  FOREIGN KEY (artist_id) REFERENCES artists(artist_id)
+    ON UPDATE CASCADE,
   FOREIGN KEY (track_id) REFERENCES songs(track_id) 
     ON UPDATE CASCADE
 );
@@ -348,7 +350,6 @@ CREATE TABLE IF NOT EXISTS codes (
   UNIQUE (user_id, purpose)
 );
 "
-
 # Create videos table
 sqlite3 $DB_FILE "
 CREATE TABLE IF NOT EXISTS videos (
@@ -363,9 +364,9 @@ CREATE TABLE IF NOT EXISTS videos (
   rel_path TEXT,
   file_exists INTEGER DEFAULT 1,
   FOREIGN KEY (artist_id) REFERENCES artists(artist_id)
+    ON UPDATE CASCADE
 );
 "
-
 # Create video_data table
 sqlite3 $DB_FILE "
 CREATE TABLE IF NOT EXISTS video_data (
@@ -376,9 +377,28 @@ CREATE TABLE IF NOT EXISTS video_data (
   watch_time_seconds INTEGER DEFAULT 0,
   last_played INTEGER DEFAULT 0,
   track_id TEXT UNIQUE,
-  FOREIGN KEY (artist_id) REFERENCES artists(artist_id),
+  FOREIGN KEY (artist_id) REFERENCES artists(artist_id)
+    ON UPDATE CASCADE,
   FOREIGN KEY (track_id) REFERENCES videos(track_id)
     ON UPDATE CASCADE
+);
+"
+# Create user_video_data table
+sqlite3 $DB_FILE "
+CREATE TABLE IF NOT EXISTS user_video_data (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  track_id TEXT NOT NULL,
+  watch_time_seconds INTEGER DEFAULT 0,
+  favorite INTEGER DEFAULT 0,
+  rating INTEGER DEFAULT 0 CHECK (rating >= 0 AND rating <= 5),
+  last_played INTEGER,
+  first_played INTEGER,
+  added_to_library INTEGER DEFAULT 0,
+  FOREIGN KEY (user_id) REFERENCES user(id),
+  FOREIGN KEY (track_id) REFERENCES videos(track_id)
+    ON UPDATE CASCADE,
+  UNIQUE (user_id, track_id)
 );
 "
 
@@ -405,5 +425,8 @@ sqlite3 $DB_FILE "CREATE INDEX IF NOT EXISTS idx_user_session_data_session_token
 sqlite3 $DB_FILE "CREATE INDEX IF NOT EXISTS idx_videos_track_id ON videos(track_id);"
 # Index for video_data
 sqlite3 $DB_FILE "CREATE INDEX IF NOT EXISTS idx_videos_data_track_id ON video_data(track_id);"
+# Index for user_video_data
+sqlite3 $DB_FILE "CREATE INDEX IF NOT EXISTS idx_user_video_data_user_id ON user_video_data(user_id);"
+sqlite3 $DB_FILE "CREATE INDEX IF NOT EXISTS idx_user_video_data_track_id ON user_video_data(track_id);"
 
 python "sort.py"

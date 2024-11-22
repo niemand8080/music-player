@@ -1,6 +1,6 @@
 "use client";
 import { useAudio } from "@/components/provider/audio-provider";
-import { getAvgHsl } from "@/lib/utils";
+// import { getAvgHsl } from "@/lib/utils";
 import React, { useCallback, useEffect, useState } from "react";
 
 export const Background = () => {
@@ -39,14 +39,14 @@ export const Background = () => {
   }, [parseHsl]);
 
   useEffect(() => {
-    const setColor = async () => {
-      if (!currentSong?.img_url) return;
-      const colorStr = await getAvgHsl(currentSong?.img_url);
-      const hsl = colorStr.split(" ").map((str) => Number(str));
-      setTargetHsl([hsl[0], hsl[1], hsl[2]]);
-    };
+    // const setColor = async () => {
+    //   if (!currentSong?.img_url) return;
+    //   const colorStr = await getAvgHsl(currentSong?.img_url);
+    //   const hsl = colorStr.split(" ").map((str) => Number(str));
+    //   setTargetHsl([hsl[0], hsl[1], hsl[2]]);
+    // };
 
-    setColor();
+    // setColor();
   }, [currentSong]);
 
   useEffect(() => {
