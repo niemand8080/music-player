@@ -16,9 +16,9 @@ import Link from "next/link";
 import { Button } from "../ui/button";
 import { ModeToggle } from "../ui/mode-toggle";
 import { Checkbox } from "../ui/checkbox";
-import { SongType } from "@/lib/utils";
+import { MediaType } from "@/lib/utils";
 import { Skeleton } from "../ui/skeleton";
-import { useSongAction } from "../provider/song-action-provider";
+import { useMediaAction } from "../provider/media-action-provider";
 
 export const UserAvatar = () => {
   const { user, authorized } = useUser();
@@ -40,7 +40,10 @@ export const UserAvatar = () => {
         <DropdownMenuTrigger>
           {authorized ? (
             <Avatar>
-              <AvatarImage className="rounded-full" src={(user && user.img_url) || ""} />
+              <AvatarImage
+                className="rounded-full"
+                src={(user && user.img_url) || ""}
+              />
               <AvatarFallback>{user?.fallback}</AvatarFallback>
             </Avatar>
           ) : (
@@ -68,9 +71,9 @@ export const UserAvatar = () => {
   );
 };
 
-export const UserStar: React.FC<{ song: SongType }> = ({ song }) => {
+export const UserStar: React.FC<{ song: MediaType }> = ({ song }) => {
   const { user } = useUser();
-  const { toggleFavorite } = useSongAction();
+  const { toggleFavorite } = useMediaAction();
 
   return (
     <button
@@ -86,7 +89,7 @@ export const UserStar: React.FC<{ song: SongType }> = ({ song }) => {
   );
 };
 
-export const UserStarRating: React.FC<{ song: SongType }> = ({ song }) => {
+export const UserStarRating: React.FC<{ song: MediaType }> = ({ song }) => {
   const [hover, setHover] = useState<number>(0);
   return (
     <div className="flex">
@@ -107,6 +110,6 @@ export const UserStarRating: React.FC<{ song: SongType }> = ({ song }) => {
   );
 };
 
-export const UserInLibrary: React.FC<{ song: SongType }> = ({ song }) => {
+export const UserInLibrary: React.FC<{ song: MediaType }> = ({ song }) => {
   return <Checkbox checked={song.added_to_library || false} />;
 };

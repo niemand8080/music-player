@@ -9,7 +9,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { api, sendBeacon, SongType } from "@/lib/utils";
+import { api, sendBeacon, MediaType } from "@/lib/utils";
 
 interface AudioContextType {
   // Audio Element / Nodes
@@ -26,9 +26,9 @@ interface AudioContextType {
   currentTime: number;
   songDuration: number;
   // Songs
-  nextSongs: SongType[];
-  currentSong: SongType | undefined;
-  songHistory: SongType[];
+  nextSongs: MediaType[];
+  currentSong: MediaType | undefined;
+  songHistory: MediaType[];
   // Audio Statistic
   listenTime: number;
   // Audio Controls
@@ -39,9 +39,9 @@ interface AudioContextType {
   toggleRepeat: () => void;
   playNext: () => void;
   playLast: () => void;
-  playSongInList: (song: SongType) => void;
-  addNext: (song: SongType) => void;
-  addLast: (song: SongType) => void;
+  playSongInList: (song: MediaType) => void;
+  addNext: (song: MediaType) => void;
+  addLast: (song: MediaType) => void;
 }
 
 const AudioContext = createContext<AudioContextType | undefined>(undefined);
@@ -74,9 +74,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [songDuration, setSongDuration] = useState<number>(0);
   // Songs
-  const [nextSongs, setNextSongs] = useState<SongType[]>([]);
-  const [currentSong, setCurrentSong] = useState<SongType>();
-  const [songHistory, setSongHistory] = useState<SongType[]>([]);
+  const [nextSongs, setNextSongs] = useState<MediaType[]>([]);
+  const [currentSong, setCurrentSong] = useState<MediaType>();
+  const [songHistory, setSongHistory] = useState<MediaType[]>([]);
   // Session Data
   const [triedLoadingSessionData, setTriedLoadingSessionData] =
     useState<boolean>(false);
@@ -155,7 +155,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
     if (!currentSong || !audio) return;
     const wasPlaying = !audio.paused;
     audio.pause();
-    audio.src = `https://192.168.7.146:8000/api/play?t=${currentSong.track_id}`;
+    audio.src = `https://192.168.7.146:8000/api/consume?t=${currentSong.track_id}`;
     if (wasPlaying) audio.play();
     api("/set_session_data", "POST", {
       items: [{ name: "currentTime", data: 0 }],
@@ -178,7 +178,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // API
   const getSongs = async (amount: number) => {
-    const data = await api(`/songs?a=${amount}`);
+    const data = await api(`/media?mt=s&a=${amount}`);
     if (data == false) return [];
     else {
       for (const song of data) {
@@ -364,7 +364,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   // Plays the given song from the nextSongs list
-  const playSongInList = (song: SongType) => {
+  const playSongInList = (song: MediaType) => {
     if (nextSongs.length == 0 || !currentSong) return;
     const index = nextSongs.indexOf(song);
     const [next, ...remaining] = nextSongs.slice(index);
@@ -376,14 +376,14 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   // Appends the song to the start of the nextSongs array
-  const addNext = (song: SongType) => {
+  const addNext = (song: MediaType) => {
     const copy = JSON.parse(JSON.stringify(song));
     copy.uuid = crypto.randomUUID();
     setNextSongs((prev) => [copy, ...prev]);
   };
 
   // Appends the song to the end of the nextSongs array
-  const addLast = (song: SongType) => {
+  const addLast = (song: MediaType) => {
     const copy = JSON.parse(JSON.stringify(song));
     copy.uuid = crypto.randomUUID();
     setNextSongs((prev) => [...prev, copy]);
@@ -411,9 +411,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [currentVolume, gain]);
 
   // Listen time
-  const updateListenTime = async (song: SongType | undefined) => {
+  const updateListenTime = async (song: MediaType | undefined) => {
     if (listenTime > 1 && song) {
-      await api('/update_listen_time', 'POST', {
+      await api('/update_consume_time', 'POST', {
         track: song.track_id,
         time: listenTime
       });

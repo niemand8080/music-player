@@ -102,250 +102,26 @@ def get_img(path: str):
         return send_file(not_found_file)
 ##I -----------------------------IMAGE-----------------------------
 
-##V ----------------------------VIDEOS-----------------------------
-@app.route('/api/videos', methods=['GET'])
-async def videos():
+##M -----------------------------MEDIA-----------------------------
+@app.route('/api/medias', methods=['GET'])
+async def medias():
     token = request.cookies.get('session_token')
     amount = request.args.get('a') or -1
-    
-    if amount is None or not int(amount):
-        return jsonify({ "error": "Invalid amount" })
-
-    videos = await get_videos(token, amount)
-
-    return jsonify(videos)
-
-@app.route('/api/watch', methods=['GET'])
-async def watch():
-    token = request.cookies.get('session_token')
+    media_type = request.args.get('mt') or 's'
     track = request.args.get('t')
-    user = await get_user(token)
     
-    video = await sql("SELECT * FROM videos WHERE track_id = ?", [track], fetch_results=True)
-
-    if len(video) <= 0:
-        return jsonify({ "error": "No video found" })
-
-    video = format_namedtuple(video, first=True)
-    full_path = os.path.join(VIDEOS_DIR, video['rel_path'])
-
-    await sql("UPDATE video_data SET last_played = ? WHERE track_id = ?", [get_time(), track])
-
-    if user is not None:
-        logger.debug(user['username'])
-        await update_uvd(token, track, "last_played", get_time())
-
-    return send_file(full_path)
-
-UVDType = Literal["last_played", "watch_time_seconds", "favorite", "rating", "first_played", "added_to_library"]
-
-async def update_uvd(token: tuple[str, None], track_id: str, change: UVDType, param: tuple[str, int]) -> bool:
-    if token is None:
-        logger.error("No token provided")
-        return False
-
-    user = await get_user(token)
-    if user is None:
-        logger.error(f"No user found for token: {token}")
-        return False
-
-    video = await sql("SELECT 1 FROM video_data WHERE track_id = ?", [track_id], fetch_success=True)
-    if not video:
-        logger.error(f"No Video found for track_id: {track_id}")
-        return False
+    if not int(amount):
+        return jsonify({ "error": "Invalid amount" })
     
-    user_id = user['id']
-    uvd = await sql("SELECT 1 FROM user_video_data WHERE track_id = ? AND user_id = ?", [track_id, user_id], fetch_success=True)
-    if not uvd:
-        if await sql("INSERT INTO user_video_data (user_id, track_id) VALUES (?,?)", [user_id, track_id], fetch_success=True):
-            logger.error(f"Failed to create instance for: (user_id: {user_id}, track_id: {track_id})")
-            return False
-    
-    try:
-        if change == "watch_time_seconds":
-            await sql(f"UPDATE user_video_data SET {change} = {change} + ? WHERE track_id = ? AND user_id = ?", [param, track_id, user_id])
-        else:
-            await sql(f"UPDATE user_video_data SET {change} = ? WHERE track_id = ? AND user_id = ?", [param, track_id, user_id])
-        return True
-    except Exception as e:
-        logger.error(f"Error updating user video data: {str(e)}")
-        return False
+    medias = await get_medias(token, amount, track, media_type)
 
-async def get_videos(token: str, max_amount = -1):
-    videos = None
-    if token is not None:
-        user = await get_user(token)
-        if user is not None:
-            videos = await sql("""
-                SELECT 
-                    v.file_exists,
-                    v.name,
-                    v.date,
-                    v.duration,
-                    v.added,
-                    v.track_id,
-                    v.yt_link,
-                    vd.artist_id,
-                    vd.tags,
-                    vd.watch_time_seconds,
-                    vd.last_played,
-                    a.name as artist_name,
-                    ud.favorite,
-                    ud.rating,
-                    ud.last_played as i_last_played,
-                    ud.added_to_library,
-                    ud.watch_time_seconds as my_watch_time_seconds
-                FROM videos v
-                LEFT JOIN video_data vd ON vd.track_id = v.track_id
-                LEFT JOIN artists a ON a.artist_id = vd.artist_id
-                LEFT JOIN user_video_data ud ON ud.track_id = v.track_id AND ud.user_id = ?
-                ORDER BY RANDOM()
-                LIMIT ?
-            """, [user['id'], max_amount], fetch_results=True)
-    if videos is None:
-        videos = await sql("""
-                SELECT 
-                    v.file_exists,
-                    v.name,
-                    v.date,
-                    v.duration,
-                    v.added,
-                    v.track_id,
-                    v.yt_link,
-                    vd.artist_id,
-                    vd.tags,
-                    vd.watch_time_seconds,
-                    vd.last_played,
-                    a.name as artist_name
-                FROM videos v
-                LEFT JOIN video_data vd ON vd.track_id = v.track_id
-                LEFT JOIN artists a ON a.artist_id = vd.artist_id
-                ORDER BY RANDOM()
-                LIMIT ?
-            """, [max_amount], fetch_results=True)
-    return format_namedtuple(videos)
+    if medias is None:
+        return jsonify({ "error": "Invalid media type" })
 
-async def get_video(track_id: str, token: str):
-    video = None
-    logger.info(token)
-    if token is not None:
-        user = await get_user(token)
-        if user is not None:
-            video = await sql("""
-                SELECT 
-                    v.file_exists,
-                    v.name,
-                    v.date,
-                    v.duration,
-                    v.added,
-                    v.track_id,
-                    v.yt_link,
-                    vd.artist_id,
-                    vd.tags,
-                    vd.watch_time_seconds,
-                    vd.last_played,
-                    a.name as artist_name,
-                    ud.favorite,
-                    ud.rating,
-                    ud.last_played as i_last_played,
-                    ud.added_to_library,
-                    ud.watch_time_seconds as my_watch_time_seconds
-                FROM videos v
-                LEFT JOIN video_data vd ON vd.track_id = v.track_id
-                LEFT JOIN artists a ON a.artist_id = vd.artist_id
-                LEFT JOIN user_video_data ud ON ud.track_id = v.track_id AND ud.user_id = ?
-                ORDER BY RANDOM()
-                LIMIT 1
-            """, [user['id'], track_id], fetch_results=True)[0]
-    if video is None:
-        video = await sql("""
-                SELECT 
-                    v.file_exists,
-                    v.name,
-                    v.date,
-                    v.duration,
-                    v.added,
-                    v.track_id,
-                    v.yt_link,
-                    vd.artist_id,
-                    vd.tags,
-                    vd.watch_time_seconds,
-                    vd.last_played,
-                    a.name as artist_name,
-                    ud.favorite,
-                    ud.rating,
-                    ud.last_played as i_last_played,
-                    ud.added_to_library,
-                    ud.watch_time_seconds as my_watch_time_seconds
-                FROM videos v
-                LEFT JOIN video_data vd ON vd.track_id = v.track_id
-                LEFT JOIN artists a ON a.artist_id = vd.artist_id
-                LEFT JOIN user_video_data ud ON ud.track_id = v.track_id AND ud.user_id = ?
-                ORDER BY RANDOM()
-                LIMIT 1
-            """, [track_id], fetch_results=True)[0]
-    return format_namedtuple(video)
-##V ----------------------------VIDEOS-----------------------------
+    return jsonify(medias)
 
-##M -----------------------------MUSIC-----------------------------
-# TODO
-@app.route('/api/search', methods=['GET'])
-async def search_in_db():
-    query: Optional[str] = request.args.get('q')
-    if query is None:
-        query = ""
-    query = query.lower()
-    limit: int = int(request.args.get('limit', 100))
-    pattern = f"%{'%'.join(query)}%"
-    sql_query = """
-        SELECT
-            s.file_exists,
-            s.name,
-            s.date,
-            s.duration,
-            s.added,
-            s.track_id,
-            s.yt_link,
-            sd.artist_id,
-            sd.album,
-            sd.genre,
-            sd.tags,
-            sd.listen_time_seconds,
-            sd.last_played,
-            sd.img_url,
-            a.name as artist_name
-        FROM songs s
-        LEFT JOIN songs_data sd ON sd.track_id = s.track_id
-        LEFT JOIN artists a ON a.artist_id = sd.artist_id
-        WHERE LOWER(s.name) LIKE ? 
-            OR LOWER(a.name) LIKE ? 
-            OR s.track_id = ?
-        ORDER BY sd.listen_time_seconds DESC, s.added DESC
-        LIMIT ?
-    """
-    
-    # Execute the query using your custom sql function
-    songs = await sql(sql_query, [pattern, pattern, query, limit], fetch_results=True)
-    
-    result = format_namedtuple(songs)
-    return jsonify(result)
-
-@app.route('/api/songs', methods=['GET'])
-async def songs():
-    token = request.cookies.get('session_token')
-    max_amount = request.args.get('a')
-
-    if max_amount is not None and max_amount.isdigit():
-        max_amount = int(max_amount)
-    else:
-        max_amount = -1
-    
-    songs = await get_songs(token, max_amount)
-
-    return jsonify(songs)
-
-@app.route('/api/update_listen_time', methods=['POST'])
-async def update_listen_time():
+@app.route('/api/update_consume_time', methods=['POST'])
+async def update_consume_time():
     token = request.cookies.get('session_token')
     track = request.json.get('track')
     time = math.floor(int(request.json.get('time')))
@@ -354,72 +130,63 @@ async def update_listen_time():
         return jsonify({ "error": "No track set" })
     
     await sql("""
-        UPDATE songs_data
-        SET listen_time_seconds = listen_time_seconds + ?
+        UPDATE media_data
+        SET consume_time_seconds = consume_time_seconds + ?
         WHERE track_id = ?
     """, [time, track])
 
     updated = True
 
     if track:
-        updated = await update_usd(token, track, 'listen_time_seconds', time, add=True)
+        updated = await update_umd(token, track, 'consume_time_seconds', time)
 
     if updated:
-        return jsonify({ "success": "Successfully updated listen time" })
+        return jsonify({ "success": "Successfully updated consume time" })
     else:
-        return jsonify({ "error": "Error changing user specific listen time" })
-
-@app.route('/api/get_song', methods=['GET'])
-async def get_song():
-    token = request.cookies.get('session_token')
-    track = request.args.get('t')
-
-    song = await get_song(track, token)
-
-    return jsonify(song)
+        return jsonify({ "error": "Error changing user specific consume time" })
 
 current_track_id = ""
-
-@app.route('/api/play')
-async def play_song():
+@app.route('/api/consume', methods=['GET'])
+async def consume():
     global current_track_id
-    track_id = request.args.get('t')
     token = request.cookies.get('session_token')
-    range_header = request.headers.get('Range')
-    byte_range = range_header[6:] if range_header else None
-    
-    try:
-        if track_id is None:
-            if byte_range == "0-1" or byte_range == None:
-                songs = await sql("SELECT * FROM songs ORDER BY RANDOM() LIMIT 1", fetch_results=True)
-            else:
-                songs = await sql("SELECT * FROM songs WHERE track_id = ? LIMIT 1", [current_track_id], fetch_results=True)
+    track = request.args.get('t')
+    byte_range = request.headers.get('Range')
+    user = await get_user(token)
+
+    if track is None:
+        track = "s"
+
+    media = None
+    if len(track) == 1:
+        if byte_range == "0-1" or byte_range is None:
+            media = await sql("SELECT * FROM media WHERE type = ? ORDER BY RANDOM() LIMIT 1", [track], fetch_results=True)
         else:
-            songs = await sql("SELECT * FROM songs WHERE track_id = ?", [track_id], fetch_results=True)
-        
-        song = format_namedtuple(songs, first=True)
+            media = await sql("SELECT * FROM media WHERE track_id = ? LIMIT 1", [current_track_id], fetch_results=True)
+    else:
+        media = await sql("SELECT * FROM media WHERE track_id = ? LIMIT 1", [track], fetch_results=True)
 
-        current_track_id = song['track_id']
-        
-        full_path = os.path.join(MUSIC_DIR, song["rel_path"])
-        if not os.path.exists(full_path):
-            logger.error(f"File not found: {full_path}")
-            abort(404)
-        
-        await sql("UPDATE songs_data SET last_played = ? WHERE track_id = ?", [get_time(), track_id])
+    if len(media) <= 0:
+        return jsonify({ "error": "No media found" })
 
-        if token is not None:
-            await update_usd(token, song['track_id'], "last_played", get_time())
+    media = format_namedtuple(media, first=True)
+    track = media['track_id']
+    media_type = track[:1]
+    current_track_id = track
 
-        logger.info(f"{song['name']} ({song['track_id']})")
+    if media_type == 's':
+        full_path = os.path.join(MUSIC_DIR, media['rel_path'])
 
-        return send_file(full_path)
-    except Exception as e:
-        logger.error(f"Error serving track:{track_id}: {str(e)}")
-        abort(500)
-##M -----------------------------MUSIC-----------------------------
+    if media_type == 'v':
+        full_path = os.path.join(VIDEOS_DIR, media['rel_path'])
 
-##D --------------------------USER MUSIC---------------------------
+    await sql("UPDATE media_data SET last_consumed = ? WHERE track_id = ?", [get_time(), track])
+
+    if user is not None:
+        await update_umd(token, track, "last_consumed", get_time())
+
+    return send_file(full_path)
+
 @app.route('/api/uusd', methods=['POST'])
 async def uusd():
     data = request.json
@@ -428,17 +195,16 @@ async def uusd():
     change = data.get('change')
     to = data.get('to')
 
-    updated = await update_usd(token, track_id, change, to)
+    updated = await update_umd(token, track_id, change, to)
 
     if updated:
         return jsonify({ "success": True , "message": "Successfully Changed user specific data" })
     else:
         return jsonify({ "success": False , "error": "Not Authorized" })
 
-# usd is user song data
-USDType = Literal["last_played", "listen_time_seconds", "favorite", "rating", "skip_count", "first_played", "added_to_library"]
+UMDType = Literal["last_consumed", "consume_time_seconds", "favorite", "rating", "first_consumed", "added_to_library"]
 
-async def update_usd(token: tuple[str, None], track_id: str, change: USDType, param: tuple[str, int]) -> bool:
+async def update_umd(token: tuple[str, None], track_id: str, change: UMDType, param: tuple[str, int]) -> bool:
     if token is None:
         logger.error("No token provided")
         return False
@@ -448,151 +214,588 @@ async def update_usd(token: tuple[str, None], track_id: str, change: USDType, pa
         logger.error(f"No user found for token: {token}")
         return False
 
-    song = await sql("SELECT 1 FROM songs_data WHERE track_id = ?", [track_id], fetch_success=True)
-    if not song:
-        logger.error(f"No Song found for track_id: {track_id}")
+    media = await sql("SELECT 1 FROM media_data WHERE track_id = ?", [track_id], fetch_success=True)
+    if not media:
+        logger.error(f"No Media found for track_id: {track_id}")
         return False
     
-    user_id = user.id
-    usd = await sql("SELECT 1 FROM user_song_data WHERE track_id = ? AND user_id = ?", [track_id, user_id], fetch_success=True)
-    if not usd:
-        if await sql("INSERT INTO user_song_data (user_id, track_id) VALUES (?,?)", [user_id, track_id], fetch_success=True):
+    user_id = user['id']
+    uvd = await sql("SELECT 1 FROM user_media_data WHERE track_id = ? AND user_id = ?", [track_id, user_id], fetch_success=True)
+    if not uvd:
+        if not await sql("INSERT INTO user_media_data (user_id, track_id) VALUES (?,?)", [user_id, track_id], fetch_success=True):
             logger.error(f"Failed to create instance for: (user_id: {user_id}, track_id: {track_id})")
             return False
     
     try:
-        if change == "listen_time_seconds":
-            await sql(f"UPDATE user_song_data SET {change} = ? WHERE track_id = ? AND user_id = ?", [param, track_id, user_id])
+        if change == "consume_time_seconds":
+            await sql(f"UPDATE user_media_data SET {change} = {change} + ? WHERE track_id = ? AND user_id = ?", [param, track_id, user_id])
         else:
-            await sql(f"UPDATE user_song_data SET {change} = {change} + ? WHERE track_id = ? AND user_id = ?", [param, track_id, user_id])
+            await sql(f"UPDATE user_media_data SET {change} = ? WHERE track_id = ? AND user_id = ?", [param, track_id, user_id])
         return True
     except Exception as e:
-        logger.error(f"Error updating user song data: {str(e)}")
+        logger.error(f"Error updating user media data: {str(e)}")
         return False
 
-async def get_songs(token: str, max_amount = -1):
-    songs = None
-    if token is not None:
-        user = await get_user(token)
-        if user is not None:
-            songs = await sql("""
-                SELECT 
-                    s.file_exists,
-                    s.name,
-                    s.date,
-                    s.duration,
-                    s.added,
-                    s.track_id,
-                    s.yt_link,
-                    sd.artist_id,
-                    sd.album,
-                    sd.genre,
-                    sd.tags,
-                    sd.listen_time_seconds,
-                    sd.last_played,
-                    sd.img_url,
-                    a.name as artist_name,
-                    ud.favorite,
-                    ud.rating,
-                    ud.last_played as i_last_played,
-                    ud.skip_count,
-                    ud.added_to_library,
-                    ud.listen_time_seconds as my_listen_time_seconds
-                FROM songs s
-                LEFT JOIN songs_data sd ON sd.track_id = s.track_id
-                LEFT JOIN artists a ON a.artist_id = sd.artist_id
-                LEFT JOIN user_song_data ud ON ud.track_id = s.track_id AND ud.user_id = ?
-                ORDER BY RANDOM()
-                LIMIT ?
-            """, [user['id'], max_amount], fetch_results=True)
-    if songs is None:
-        songs = await sql("""
-                SELECT 
-                    s.file_exists,
-                    s.name,
-                    s.date,
-                    s.duration,
-                    s.added,
-                    s.track_id,
-                    s.yt_link,
-                    sd.artist_id,
-                    sd.album,
-                    sd.genre,
-                    sd.tags,
-                    sd.listen_time_seconds,
-                    sd.last_played,
-                    sd.img_url,
-                    a.name as artist_name
-                FROM songs s
-                LEFT JOIN songs_data sd ON sd.track_id = s.track_id
-                LEFT JOIN artists a ON a.artist_id = sd.artist_id
-                ORDER BY RANDOM()
-                LIMIT ?
-            """, [max_amount], fetch_results=True)
-    return add_random_image(format_namedtuple(songs))
+async def get_medias(token: str, max_amount = -1, track: str = None, media_type: str = "s"):
+    media = None
+    if max_amount == -1 and track is not None:
+        max_amount = 1
+    else:
+        track = "%"
 
-async def get_song(track_id: str, token: str):
-    song = None
-    logger.info(token)
     if token is not None:
         user = await get_user(token)
         if user is not None:
-            song = await sql("""
+            media = await sql(f"""
                 SELECT 
-                    s.file_exists,
-                    s.name,
-                    s.date,
-                    s.duration,
-                    s.added,
-                    s.track_id,
-                    s.yt_link,
-                    sd.artist_id,
-                    sd.album,
-                    sd.genre,
-                    sd.tags,
-                    sd.listen_time_seconds,
-                    sd.last_played,
-                    sd.img_url,
+                    m.file_exists,
+                    m.name,
+                    m.date,
+                    m.duration,
+                    m.added,
+                    m.track_id,
+                    m.yt_link,
+                    m.type,
+                    md.artist_id,
+                    md.tags,
+                    md.consume_time_seconds,
+                    md.last_consumed,
+                    md.album,
+                    md.genre,
+                    md.img_url,
                     a.name as artist_name,
                     ud.favorite,
                     ud.rating,
-                    ud.last_played as i_last_played,
-                    ud.skip_count,
+                    ud.last_consumed as i_last_consumed,
                     ud.added_to_library,
-                    ud.listen_time_seconds as my_listen_time_seconds
-                FROM songs s
-                LEFT JOIN songs_data sd ON sd.track_id = s.track_id
-                LEFT JOIN artists a ON a.artist_id = sd.artist_id
-                LEFT JOIN user_song_data ud ON ud.track_id = s.track_id AND ud.user_id = ?
-                WHERE track_id
-                LIMIT 1
-            """, [user['id'], track_id], fetch_results=True)[0]
-    if song is None:
-        song = await sql("""
+                    ud.skip_count,
+                    ud.consume_time_seconds as my_consume_time_seconds
+                FROM media m
+                LEFT JOIN media_data md ON md.track_id = m.track_id
+                LEFT JOIN artists a ON a.artist_id = md.artist_id
+                LEFT JOIN user_media_data ud ON ud.track_id = m.track_id AND ud.user_id = ?
+                WHERE m.track_id LIKE ? AND m.type = ?
+                ORDER BY RANDOM()
+                LIMIT ?
+            """, [user['id'], track, media_type, max_amount], fetch_results=True)
+    if media is None:
+        media = await sql("""
                 SELECT 
-                    s.file_exists,
-                    s.name,
-                    s.date,
-                    s.duration,
-                    s.added,
-                    s.track_id,
-                    s.yt_link,
-                    sd.artist_id,
-                    sd.album,
-                    sd.genre,
-                    sd.tags,
-                    sd.listen_time_seconds,
-                    sd.last_played,
-                    sd.img_url,
+                    m.file_exists,
+                    m.name,
+                    m.date,
+                    m.duration,
+                    m.added,
+                    m.track_id,
+                    m.yt_link,
+                    m.type,
+                    md.artist_id,
+                    md.tags,
+                    md.consume_time_seconds,
+                    md.last_consumed,
+                    md.album,
+                    md.genre,
+                    md.img_url,
                     a.name as artist_name
-                FROM songs s
-                LEFT JOIN songs_data sd ON sd.track_id = s.track_id
-                LEFT JOIN artists a ON a.artist_id = sd.artist_id
-                WHERE track_id = ?
-                LIMIT 1
-            """, [track_id], fetch_results=True)[0]
-    return add_random_image(format_namedtuple(song))
-##D --------------------------USER MUSIC---------------------------
+                FROM media m
+                LEFT JOIN media_data md ON md.track_id = m.track_id
+                LEFT JOIN artists a ON a.artist_id = md.artist_id
+                WHERE m.track_id LIKE ? AND m.type = ?
+                ORDER BY RANDOM()
+                LIMIT ?
+            """, [track, media_type, max_amount], track, fetch_results=True)
+    return format_namedtuple(media)
+##M -----------------------------MEDIA-----------------------------
+
+# ##V ----------------------------VIDEOS-----------------------------
+# @app.route('/api/videos', methods=['GET'])
+# async def videos():
+#     token = request.cookies.get('session_token')
+#     amount = request.args.get('a') or -1
+    
+#     if amount is None or not int(amount):
+#         return jsonify({ "error": "Invalid amount" })
+
+#     videos = await get_videos(token, amount)
+
+#     return jsonify(videos)
+
+# @app.route('/api/watch', methods=['GET'])
+# async def watch():
+#     token = request.cookies.get('session_token')
+#     track = request.args.get('t')
+#     user = await get_user(token)
+    
+#     video = await sql("SELECT * FROM videos WHERE track_id = ?", [track], fetch_results=True)
+
+#     if len(video) <= 0:
+#         return jsonify({ "error": "No video found" })
+
+#     video = format_namedtuple(video, first=True)
+#     full_path = os.path.join(VIDEOS_DIR, video['rel_path'])
+
+#     await sql("UPDATE video_data SET last_played = ? WHERE track_id = ?", [get_time(), track])
+
+#     if user is not None:
+#         logger.debug(user['username'])
+#         await update_uvd(token, track, "last_played", get_time())
+
+#     return send_file(full_path)
+
+# UVDType = Literal["last_played", "watch_time_seconds", "favorite", "rating", "first_played", "added_to_library"]
+
+# async def update_uvd(token: tuple[str, None], track_id: str, change: UVDType, param: tuple[str, int]) -> bool:
+#     if token is None:
+#         logger.error("No token provided")
+#         return False
+
+#     user = await get_user(token)
+#     if user is None:
+#         logger.error(f"No user found for token: {token}")
+#         return False
+
+#     video = await sql("SELECT 1 FROM video_data WHERE track_id = ?", [track_id], fetch_success=True)
+#     if not video:
+#         logger.error(f"No Video found for track_id: {track_id}")
+#         return False
+    
+#     user_id = user['id']
+#     uvd = await sql("SELECT 1 FROM user_video_data WHERE track_id = ? AND user_id = ?", [track_id, user_id], fetch_success=True)
+#     if not uvd:
+#         if await sql("INSERT INTO user_video_data (user_id, track_id) VALUES (?,?)", [user_id, track_id], fetch_success=True):
+#             logger.error(f"Failed to create instance for: (user_id: {user_id}, track_id: {track_id})")
+#             return False
+    
+#     try:
+#         if change == "watch_time_seconds":
+#             await sql(f"UPDATE user_video_data SET {change} = {change} + ? WHERE track_id = ? AND user_id = ?", [param, track_id, user_id])
+#         else:
+#             await sql(f"UPDATE user_video_data SET {change} = ? WHERE track_id = ? AND user_id = ?", [param, track_id, user_id])
+#         return True
+#     except Exception as e:
+#         logger.error(f"Error updating user video data: {str(e)}")
+#         return False
+
+# async def get_videos(token: str, max_amount = -1):
+#     videos = None
+#     if token is not None:
+#         user = await get_user(token)
+#         if user is not None:
+#             videos = await sql("""
+#                 SELECT 
+#                     v.file_exists,
+#                     v.name,
+#                     v.date,
+#                     v.duration,
+#                     v.added,
+#                     v.track_id,
+#                     v.yt_link,
+#                     vd.artist_id,
+#                     vd.tags,
+#                     vd.watch_time_seconds,
+#                     vd.last_played,
+#                     a.name as artist_name,
+#                     ud.favorite,
+#                     ud.rating,
+#                     ud.last_played as i_last_played,
+#                     ud.added_to_library,
+#                     ud.watch_time_seconds as my_watch_time_seconds
+#                 FROM videos v
+#                 LEFT JOIN video_data vd ON vd.track_id = v.track_id
+#                 LEFT JOIN artists a ON a.artist_id = vd.artist_id
+#                 LEFT JOIN user_video_data ud ON ud.track_id = v.track_id AND ud.user_id = ?
+#                 ORDER BY RANDOM()
+#                 LIMIT ?
+#             """, [user['id'], max_amount], fetch_results=True)
+#     if videos is None:
+#         videos = await sql("""
+#                 SELECT 
+#                     v.file_exists,
+#                     v.name,
+#                     v.date,
+#                     v.duration,
+#                     v.added,
+#                     v.track_id,
+#                     v.yt_link,
+#                     vd.artist_id,
+#                     vd.tags,
+#                     vd.watch_time_seconds,
+#                     vd.last_played,
+#                     a.name as artist_name
+#                 FROM videos v
+#                 LEFT JOIN video_data vd ON vd.track_id = v.track_id
+#                 LEFT JOIN artists a ON a.artist_id = vd.artist_id
+#                 ORDER BY RANDOM()
+#                 LIMIT ?
+#             """, [max_amount], fetch_results=True)
+#     return format_namedtuple(videos)
+
+# async def get_video(track_id: str, token: str):
+#     video = None
+#     logger.info(token)
+#     if token is not None:
+#         user = await get_user(token)
+#         if user is not None:
+#             video = await sql("""
+#                 SELECT 
+#                     v.file_exists,
+#                     v.name,
+#                     v.date,
+#                     v.duration,
+#                     v.added,
+#                     v.track_id,
+#                     v.yt_link,
+#                     vd.artist_id,
+#                     vd.tags,
+#                     vd.watch_time_seconds,
+#                     vd.last_played,
+#                     a.name as artist_name,
+#                     ud.favorite,
+#                     ud.rating,
+#                     ud.last_played as i_last_played,
+#                     ud.added_to_library,
+#                     ud.watch_time_seconds as my_watch_time_seconds
+#                 FROM videos v
+#                 LEFT JOIN video_data vd ON vd.track_id = v.track_id
+#                 LEFT JOIN artists a ON a.artist_id = vd.artist_id
+#                 LEFT JOIN user_video_data ud ON ud.track_id = v.track_id AND ud.user_id = ?
+#                 ORDER BY RANDOM()
+#                 LIMIT 1
+#             """, [user['id'], track_id], fetch_results=True)[0]
+#     if video is None:
+#         video = await sql("""
+#                 SELECT 
+#                     v.file_exists,
+#                     v.name,
+#                     v.date,
+#                     v.duration,
+#                     v.added,
+#                     v.track_id,
+#                     v.yt_link,
+#                     vd.artist_id,
+#                     vd.tags,
+#                     vd.watch_time_seconds,
+#                     vd.last_played,
+#                     a.name as artist_name,
+#                     ud.favorite,
+#                     ud.rating,
+#                     ud.last_played as i_last_played,
+#                     ud.added_to_library,
+#                     ud.watch_time_seconds as my_watch_time_seconds
+#                 FROM videos v
+#                 LEFT JOIN video_data vd ON vd.track_id = v.track_id
+#                 LEFT JOIN artists a ON a.artist_id = vd.artist_id
+#                 LEFT JOIN user_video_data ud ON ud.track_id = v.track_id AND ud.user_id = ?
+#                 ORDER BY RANDOM()
+#                 LIMIT 1
+#             """, [track_id], fetch_results=True)[0]
+#     return format_namedtuple(video)
+# ##V ----------------------------VIDEOS-----------------------------
+
+# ##M -----------------------------MUSIC-----------------------------
+# # TODO
+# @app.route('/api/search', methods=['GET'])
+# async def search_in_db():
+#     query: Optional[str] = request.args.get('q')
+#     if query is None:
+#         query = ""
+#     query = query.lower()
+#     limit: int = int(request.args.get('limit', 100))
+#     pattern = f"%{'%'.join(query)}%"
+#     sql_query = """
+#         SELECT
+#             s.file_exists,
+#             s.name,
+#             s.date,
+#             s.duration,
+#             s.added,
+#             s.track_id,
+#             s.yt_link,
+#             sd.artist_id,
+#             sd.album,
+#             sd.genre,
+#             sd.tags,
+#             sd.listen_time_seconds,
+#             sd.last_played,
+#             sd.img_url,
+#             a.name as artist_name
+#         FROM songs s
+#         LEFT JOIN songs_data sd ON sd.track_id = s.track_id
+#         LEFT JOIN artists a ON a.artist_id = sd.artist_id
+#         WHERE LOWER(s.name) LIKE ? 
+#             OR LOWER(a.name) LIKE ? 
+#             OR s.track_id = ?
+#         ORDER BY sd.listen_time_seconds DESC, s.added DESC
+#         LIMIT ?
+#     """
+    
+#     # Execute the query using your custom sql function
+#     songs = await sql(sql_query, [pattern, pattern, query, limit], fetch_results=True)
+    
+#     result = format_namedtuple(songs)
+#     return jsonify(result)
+
+# @app.route('/api/songs', methods=['GET'])
+# async def songs():
+#     token = request.cookies.get('session_token')
+#     max_amount = request.args.get('a')
+
+#     if max_amount is not None and max_amount.isdigit():
+#         max_amount = int(max_amount)
+#     else:
+#         max_amount = -1
+    
+#     songs = await get_songs(token, max_amount)
+
+#     return jsonify(songs)
+
+# @app.route('/api/update_listen_time', methods=['POST'])
+# async def update_listen_time():
+#     token = request.cookies.get('session_token')
+#     track = request.json.get('track')
+#     time = math.floor(int(request.json.get('time')))
+
+#     if track is None:
+#         return jsonify({ "error": "No track set" })
+    
+#     await sql("""
+#         UPDATE songs_data
+#         SET listen_time_seconds = listen_time_seconds + ?
+#         WHERE track_id = ?
+#     """, [time, track])
+
+#     updated = True
+
+#     if track:
+#         updated = await update_usd(token, track, 'listen_time_seconds', time, add=True)
+
+#     if updated:
+#         return jsonify({ "success": "Successfully updated listen time" })
+#     else:
+#         return jsonify({ "error": "Error changing user specific listen time" })
+
+# @app.route('/api/get_song', methods=['GET'])
+# async def get_song():
+#     token = request.cookies.get('session_token')
+#     track = request.args.get('t')
+
+#     song = await get_song(track, token)
+
+#     return jsonify(song)
+
+# @app.route('/api/play')
+# async def play_song():
+#     global current_track_id
+#     track_id = request.args.get('t')
+#     token = request.cookies.get('session_token')
+#     range_header = request.headers.get('Range')
+#     byte_range = range_header[6:] if range_header else None
+    
+#     try:
+#         if track_id is None:
+#             if byte_range == "0-1" or byte_range == None:
+#                 songs = await sql("SELECT * FROM songs ORDER BY RANDOM() LIMIT 1", fetch_results=True)
+#             else:
+#                 songs = await sql("SELECT * FROM songs WHERE track_id = ? LIMIT 1", [current_track_id], fetch_results=True)
+#         else:
+#             songs = await sql("SELECT * FROM songs WHERE track_id = ?", [track_id], fetch_results=True)
+        
+#         song = format_namedtuple(songs, first=True)
+
+#         current_track_id = song['track_id']
+        
+#         full_path = os.path.join(MUSIC_DIR, song["rel_path"])
+#         if not os.path.exists(full_path):
+#             logger.error(f"File not found: {full_path}")
+#             abort(404)
+        
+#         await sql("UPDATE songs_data SET last_played = ? WHERE track_id = ?", [get_time(), track_id])
+
+#         if token is not None:
+#             await update_usd(token, song['track_id'], "last_played", get_time())
+
+#         logger.info(f"{song['name']} ({song['track_id']})")
+
+#         return send_file(full_path)
+#     except Exception as e:
+#         logger.error(f"Error serving track:{track_id}: {str(e)}")
+#         abort(500)
+# ##M -----------------------------MUSIC-----------------------------
+
+# ##D --------------------------USER MUSIC---------------------------
+# @app.route('/api/uusd', methods=['POST'])
+# async def uusd():
+#     data = request.json
+#     token = request.cookies.get('session_token')
+#     track_id = data.get('track_id')
+#     change = data.get('change')
+#     to = data.get('to')
+
+#     updated = await update_usd(token, track_id, change, to)
+
+#     if updated:
+#         return jsonify({ "success": True , "message": "Successfully Changed user specific data" })
+#     else:
+#         return jsonify({ "success": False , "error": "Not Authorized" })
+
+# # usd is user song data
+# USDType = Literal["last_played", "listen_time_seconds", "favorite", "rating", "skip_count", "first_played", "added_to_library"]
+
+# async def update_usd(token: tuple[str, None], track_id: str, change: USDType, param: tuple[str, int]) -> bool:
+#     if token is None:
+#         logger.error("No token provided")
+#         return False
+
+#     user = await get_user(token)
+#     if user is None:
+#         logger.error(f"No user found for token: {token}")
+#         return False
+
+#     song = await sql("SELECT 1 FROM songs_data WHERE track_id = ?", [track_id], fetch_success=True)
+#     if not song:
+#         logger.error(f"No Song found for track_id: {track_id}")
+#         return False
+    
+#     user_id = user.id
+#     usd = await sql("SELECT 1 FROM user_song_data WHERE track_id = ? AND user_id = ?", [track_id, user_id], fetch_success=True)
+#     if not usd:
+#         if await sql("INSERT INTO user_song_data (user_id, track_id) VALUES (?,?)", [user_id, track_id], fetch_success=True):
+#             logger.error(f"Failed to create instance for: (user_id: {user_id}, track_id: {track_id})")
+#             return False
+    
+#     try:
+#         if change == "listen_time_seconds":
+#             await sql(f"UPDATE user_song_data SET {change} = ? WHERE track_id = ? AND user_id = ?", [param, track_id, user_id])
+#         else:
+#             await sql(f"UPDATE user_song_data SET {change} = {change} + ? WHERE track_id = ? AND user_id = ?", [param, track_id, user_id])
+#         return True
+#     except Exception as e:
+#         logger.error(f"Error updating user song data: {str(e)}")
+#         return False
+
+# async def get_songs(token: str, max_amount = -1):
+#     songs = None
+#     if token is not None:
+#         user = await get_user(token)
+#         if user is not None:
+#             songs = await sql("""
+#                 SELECT 
+#                     s.file_exists,
+#                     s.name,
+#                     s.date,
+#                     s.duration,
+#                     s.added,
+#                     s.track_id,
+#                     s.yt_link,
+#                     sd.artist_id,
+#                     sd.album,
+#                     sd.genre,
+#                     sd.tags,
+#                     sd.listen_time_seconds,
+#                     sd.last_played,
+#                     sd.img_url,
+#                     a.name as artist_name,
+#                     ud.favorite,
+#                     ud.rating,
+#                     ud.last_played as i_last_played,
+#                     ud.skip_count,
+#                     ud.added_to_library,
+#                     ud.listen_time_seconds as my_listen_time_seconds
+#                 FROM songs s
+#                 LEFT JOIN songs_data sd ON sd.track_id = s.track_id
+#                 LEFT JOIN artists a ON a.artist_id = sd.artist_id
+#                 LEFT JOIN user_song_data ud ON ud.track_id = s.track_id AND ud.user_id = ?
+#                 ORDER BY RANDOM()
+#                 LIMIT ?
+#             """, [user['id'], max_amount], fetch_results=True)
+#     if songs is None:
+#         songs = await sql("""
+#                 SELECT 
+#                     s.file_exists,
+#                     s.name,
+#                     s.date,
+#                     s.duration,
+#                     s.added,
+#                     s.track_id,
+#                     s.yt_link,
+#                     sd.artist_id,
+#                     sd.album,
+#                     sd.genre,
+#                     sd.tags,
+#                     sd.listen_time_seconds,
+#                     sd.last_played,
+#                     sd.img_url,
+#                     a.name as artist_name
+#                 FROM songs s
+#                 LEFT JOIN songs_data sd ON sd.track_id = s.track_id
+#                 LEFT JOIN artists a ON a.artist_id = sd.artist_id
+#                 ORDER BY RANDOM()
+#                 LIMIT ?
+#             """, [max_amount], fetch_results=True)
+#     return add_random_image(format_namedtuple(songs))
+
+# async def get_song(track_id: str, token: str):
+#     song = None
+#     logger.info(token)
+#     if token is not None:
+#         user = await get_user(token)
+#         if user is not None:
+#             song = await sql("""
+#                 SELECT 
+#                     s.file_exists,
+#                     s.name,
+#                     s.date,
+#                     s.duration,
+#                     s.added,
+#                     s.track_id,
+#                     s.yt_link,
+#                     sd.artist_id,
+#                     sd.album,
+#                     sd.genre,
+#                     sd.tags,
+#                     sd.listen_time_seconds,
+#                     sd.last_played,
+#                     sd.img_url,
+#                     a.name as artist_name,
+#                     ud.favorite,
+#                     ud.rating,
+#                     ud.last_played as i_last_played,
+#                     ud.skip_count,
+#                     ud.added_to_library,
+#                     ud.listen_time_seconds as my_listen_time_seconds
+#                 FROM songs s
+#                 LEFT JOIN songs_data sd ON sd.track_id = s.track_id
+#                 LEFT JOIN artists a ON a.artist_id = sd.artist_id
+#                 LEFT JOIN user_song_data ud ON ud.track_id = s.track_id AND ud.user_id = ?
+#                 WHERE track_id
+#                 LIMIT 1
+#             """, [user['id'], track_id], fetch_results=True)[0]
+#     if song is None:
+#         song = await sql("""
+#                 SELECT 
+#                     s.file_exists,
+#                     s.name,
+#                     s.date,
+#                     s.duration,
+#                     s.added,
+#                     s.track_id,
+#                     s.yt_link,
+#                     sd.artist_id,
+#                     sd.album,
+#                     sd.genre,
+#                     sd.tags,
+#                     sd.listen_time_seconds,
+#                     sd.last_played,
+#                     sd.img_url,
+#                     a.name as artist_name
+#                 FROM songs s
+#                 LEFT JOIN songs_data sd ON sd.track_id = s.track_id
+#                 LEFT JOIN artists a ON a.artist_id = sd.artist_id
+#                 WHERE track_id = ?
+#                 LIMIT 1
+#             """, [track_id], fetch_results=True)[0]
+#     return add_random_image(format_namedtuple(song))
+# ##D --------------------------USER MUSIC---------------------------
 
 ##U -----------------------------USER------------------------------
 # TODO user_song_history implementation

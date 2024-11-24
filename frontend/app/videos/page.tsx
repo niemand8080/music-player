@@ -1,16 +1,16 @@
 "use client"
 import { UserStar } from '@/components/my-ui/user';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
-import { api, VideoType } from '@/lib/utils';
+import { api, MediaType } from '@/lib/utils';
 import React, { useEffect, useState } from 'react'
 
 const Page = () => {
-  const [videos, setVideos] = useState<VideoType[]>([]);
-  const [currentVideo, setCurrentVideo] = useState<VideoType>();
+  const [videos, setVideos] = useState<MediaType[]>([]);
+  const [currentVideo, setCurrentVideo] = useState<MediaType>();
 
   useEffect(() => {
     const loadVideos = async () => {
-      const response: VideoType[] = await api('/videos');
+      const response: MediaType[] = await api('/videos');
       setVideos(response);
       setCurrentVideo(response[0])
     };
@@ -32,7 +32,7 @@ const Page = () => {
   )
 };
 
-const CurrentVideo: React.FC<{ video: VideoType | undefined }> = ({ video }) => {
+const CurrentVideo: React.FC<{ video: MediaType | undefined }> = ({ video }) => {
   if (!video)
     return (
       <></>
@@ -64,7 +64,7 @@ const CurrentVideo: React.FC<{ video: VideoType | undefined }> = ({ video }) => 
   )
 }
 
-const VideoCard: React.FC<{ video: VideoType }> = ({ video }) => {
+const VideoCard: React.FC<{ video: MediaType }> = ({ video }) => {
   const { name, artist_name, track_id } = video;
   return (
     <div className="w-96 h-80 flex flex-col gap-1">

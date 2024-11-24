@@ -1,49 +1,49 @@
 "use client"
-import { api, SongType } from "@/lib/utils"
+import { api, MediaType } from "@/lib/utils"
 import React, { createContext, useContext } from "react"
 import { useUser } from "./user-provider";
 import { useAlert } from "./alert-provider";
 
-interface SongActionProvider {
-  toggleLibrary: (song: SongType) => void;
-  toggleFavorite: (song: SongType) => void;
+interface MediaActionProvider {
+  toggleLibrary: (media: MediaType) => void;
+  toggleFavorite: (media: MediaType) => void;
 }
 
-const SongActionContext = createContext<SongActionProvider | undefined>(undefined);
+const MediaActionContext = createContext<MediaActionProvider | undefined>(undefined);
 
-export const SongActionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const MediaActionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { authorized } = useUser();
   const { newAlert } = useAlert();
   
-  const toggleLibrary = async (song: SongType) => {
+  const toggleLibrary = async (media: MediaType) => {
     if (!authorized) return;
-    const newValue = !song.added_to_library;
-    const updated = await updateUSD(song.track_id, "added_to_library", newValue)
+    const newValue = !media.added_to_library;
+    const updated = await updateUSD(media.track_id, "added_to_library", newValue)
     if (updated) {
-      song.added_to_library = newValue;
+      media.added_to_library = newValue;
       if (newValue) newAlert("success", "Added to Library");
       else newAlert("success", "Removed from Library");
     }
   };
 
-  const toggleFavorite = async (song: SongType) => {
+  const toggleFavorite = async (media: MediaType) => {
     if (!authorized) return;
-    const newValue = !song.favorite;
-    const updated = await updateUSD(song.track_id, "favorite", newValue)
-    if (updated) song.favorite = newValue;
+    const newValue = !media.favorite;
+    const updated = await updateUSD(media.track_id, "favorite", newValue)
+    if (updated) media.favorite = newValue;
     if (newValue) newAlert("success", "Marked Favorite");
     else newAlert("success", "Favorite Revoked");
   }
 
   return (
-    <SongActionContext.Provider
+    <MediaActionContext.Provider
       value={{
         toggleLibrary,
         toggleFavorite,
       }}
     >
       {children}
-    </SongActionContext.Provider>
+    </MediaActionContext.Provider>
   )
 };
 
@@ -59,10 +59,10 @@ const updateUSD = async (track_id: string, change: USDType, to: string | number 
   else return true
 }
 
-export const useSongAction = () => {
-  const context = useContext(SongActionContext);
+export const useMediaAction = () => {
+  const context = useContext(MediaActionContext);
   if (!context) {
-    throw new Error("useSongAction has to be called inside an SongActionProvider");
+    throw new Error("useMediaAction has to be called inside an MediaActionProvider");
   }
   return context;
 }

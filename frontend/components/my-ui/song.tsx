@@ -1,5 +1,5 @@
-import { formatTime, simpleFilter, SongType } from "@/lib/utils";
-import { useSongAction } from "../provider/song-action-provider";
+import { formatTime, simpleFilter, MediaType } from "@/lib/utils";
+import { useMediaAction } from "../provider/media-action-provider";
 import { useUser } from "../provider/user-provider";
 import { useAudio } from "../provider/audio-provider";
 import {
@@ -37,9 +37,9 @@ import { useDisplay } from "../provider/display-provider";
 import Image from "next/image";
 import { ProgressBar } from "./progress-bar";
 
-export const SongOptions: React.FC<{ song: SongType }> = ({ song }) => {
+export const SongOptions: React.FC<{ song: MediaType }> = ({ song }) => {
   const { user, authorized } = useUser();
-  const { toggleLibrary, toggleFavorite } = useSongAction();
+  const { toggleLibrary, toggleFavorite } = useMediaAction();
   const { addLast, addNext } = useAudio();
   const { added_to_library, favorite } = song;
   const disable = user == undefined || !authorized;
@@ -112,11 +112,11 @@ export const SongOptions: React.FC<{ song: SongType }> = ({ song }) => {
 };
 
 export const SongWithContext: React.FC<{
-  song: SongType;
+  song: MediaType;
   children: React.ReactNode;
 }> = ({ song, children }) => {
   const { user, authorized } = useUser();
-  const { toggleLibrary, toggleFavorite } = useSongAction();
+  const { toggleLibrary, toggleFavorite } = useMediaAction();
   const { addLast, addNext } = useAudio();
   const { added_to_library, favorite } = song;
   const disable = user == undefined || !authorized;
@@ -200,7 +200,7 @@ export const CompactPlayer: React.FC<{ progressBg?: string }> = ({
 };
 
 export const CurrentSongDisplay: React.FC<{
-  song: SongType | undefined;
+  song: MediaType | undefined;
   options?: boolean;
   big?: boolean;
 }> = ({ song, options = true, big = false }) => {
@@ -291,7 +291,11 @@ export const CurrentSongDisplay: React.FC<{
           </h2>
         </div>
         {(options || big) && (
-          <div className={`${big ? "bottom-0" : "top-1/2 -translate-y-1/2"} absolute right-0`}>
+          <div
+            className={`${
+              big ? "bottom-0" : "top-1/2 -translate-y-1/2"
+            } absolute right-0`}
+          >
             <SongOptions song={song} />
           </div>
         )}
@@ -303,7 +307,7 @@ export const CurrentSongDisplay: React.FC<{
 export const NextSongsList: React.FC<{ filter: string }> = ({ filter }) => {
   const { nextSongs } = useAudio();
   const { toggleDisplaySongList } = useDisplay();
-  const [displaySongs, setDisplaySongs] = useState<SongType[]>();
+  const [displaySongs, setDisplaySongs] = useState<MediaType[]>();
 
   useEffect(() => {
     if (filter == "") {
@@ -351,7 +355,7 @@ export const NextSongsList: React.FC<{ filter: string }> = ({ filter }) => {
   );
 };
 
-export const SongDisplay: React.FC<{ song: SongType | undefined }> = ({
+export const SongDisplay: React.FC<{ song: MediaType | undefined }> = ({
   song,
 }) => {
   const { playSongInList } = useAudio();

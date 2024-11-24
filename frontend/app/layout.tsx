@@ -4,7 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/provider/theme-provider";
 import { AudioProvider } from "@/components/provider/audio-provider";
 import { UserProvider } from "@/components/provider/user-provider";
-import { SongActionProvider } from "@/components/provider/song-action-provider";
+import { MediaActionProvider } from "@/components/provider/media-action-provider";
 import { DisplayProvider } from "@/components/provider/display-provider";
 import Header from "./Header";
 import { Toaster } from "@/components/ui/toaster";
@@ -56,7 +56,7 @@ export default function RootLayout({
           <TooltipProvider>
             <AlertSpammer>
               <UserProvider>
-                <SongActionProvider>
+                <MediaActionProvider>
                   <Header />
                   <AudioProvider>
                     <DisplayProvider>
@@ -68,7 +68,7 @@ export default function RootLayout({
                     </DisplayProvider>
                   </AudioProvider>
                   <PageProtector />
-                </SongActionProvider>
+                </MediaActionProvider>
               </UserProvider>
             </AlertSpammer>
             <Toaster />

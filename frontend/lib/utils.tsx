@@ -7,84 +7,32 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-// Song
-export type SongType = {
+// Media
+export type MediaType = {
   name: string;
   file_exists: boolean;
-  artist_id: string;
+  artist_id: string; 
   artist_name: string | null;
-  album: string | null;
-  genre: string | null;
+  album: string | null; 
+  genre: string | null; 
   tags: string[] | null;
-  birth_date: number;
+  date: number;
   duration: number;
-  listen_time_seconds: number;
-  added: number;
+  consume_time_seconds: number;
+  added: number; 
   track_id: string;
-  last_played: number;
+  last_consumed: number;
   yt_link: string | null;
   img_url: string;
+  type: "s" | "v";
   // uuid
   uuid: string;
   // if logged in
   favorite: boolean | null;
   rating: number | null;
-  i_last_played: number | null;
+  i_last_consumed: number | null;
   skip_count: number | null;
-  my_listen_time_seconds: number | null;
-  added_to_library: boolean | null;
-};
-
-export const sampleSong: SongType = {
-  name: "Sample Song",
-  file_exists: true,
-  artist_id: "00000000",
-  artist_name: "Sample Artist",
-  album: "Sample Album",
-  genre: "Sample Genre",
-  tags: ["Some", "Sample", "Tags"],
-  birth_date: 0,
-  duration: 321,
-  listen_time_seconds: 0,
-  added: 0,
-  track_id: "00000000",
-  last_played: 0,
-  yt_link: "https://www.youtube.com",
-  img_url:
-    "https://as1.ftcdn.net/v2/jpg/04/62/93/66/1000_F_462936689_BpEEcxfgMuYPfTaIAOC1tCDurmsno7Sp.jpg",
-  // uid
-  uuid: "0000000000000000",
-  // user only
-  favorite: false,
-  rating: 0,
-  i_last_played: 0,
-  skip_count: 0,
-  my_listen_time_seconds: 0,
-  added_to_library: false,
-};
-
-// Video
-export type VideoType = {
-  name: string;
-  file_exists: boolean;
-  artist_id: string;
-  artist_name: string | null;
-  tags: string[] | null;
-  birth_date: number;
-  duration: number;
-  watch_time_seconds: number;
-  added: number;
-  track_id: string;
-  last_played: number;
-  yt_link: string | null;
-  // uuid
-  uuid: string;
-  // if logged in
-  favorite: boolean | null;
-  rating: number | null;
-  i_last_played: number | null;
-  skip_count: number | null;
-  my_watch_time_seconds: number | null;
+  my_consume_time_seconds: number | null;
   added_to_library: boolean | null;
 };
 
@@ -355,8 +303,8 @@ export async function getAvgHsl(src: string): Promise<string> {
 // sort/filter
 export const simpleFilter = (
   f: string,
-  inArr: SongType[],
-): SongType[] => {
+  inArr: MediaType[],
+): MediaType[] => {
   const filters = f
     .toLowerCase()
     .replaceAll(/[\(\)\/\-{}\[|\]]/g, " ")

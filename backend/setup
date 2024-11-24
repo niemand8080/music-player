@@ -452,9 +452,9 @@ CREATE TABLE IF NOT EXISTS user_media_data (
   consume_time_seconds INTEGER DEFAULT 0,
   favorite INTEGER DEFAULT 0,
   rating INTEGER DEFAULT 0 CHECK (rating >= 0 AND rating <= 5),
-  last_played INTEGER,
+  last_consumed INTEGER,
   skip_count INTEGER DEFAULT 0,
-  first_played INTEGER,
+  first_consumed INTEGER,
   added_to_library INTEGER DEFAULT 0,
   FOREIGN KEY (user_id) REFERENCES user(id),
   FOREIGN KEY (track_id) REFERENCES media(track_id)
