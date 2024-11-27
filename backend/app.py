@@ -187,8 +187,8 @@ async def consume():
 
     return send_file(full_path)
 
-@app.route('/api/uusd', methods=['POST'])
-async def uusd():
+@app.route('/api/uumd', methods=['POST'])
+async def uumd():
     data = request.json
     token = request.cookies.get('session_token')
     track_id = data.get('track_id')
@@ -228,8 +228,10 @@ async def update_umd(token: tuple[str, None], track_id: str, change: UMDType, pa
     
     try:
         if change == "consume_time_seconds":
+            logger.info(f"{change}: ? + {param}")
             await sql(f"UPDATE user_media_data SET {change} = {change} + ? WHERE track_id = ? AND user_id = ?", [param, track_id, user_id])
         else:
+            logger.info(f"{change}: {param}")
             await sql(f"UPDATE user_media_data SET {change} = ? WHERE track_id = ? AND user_id = ?", [param, track_id, user_id])
         return True
     except Exception as e:

@@ -152,7 +152,6 @@ async def update_db():
       """, [title, artist_id, track, tags, "v"])
 
       print(f"Media \033[34m{title}\033[0m added: \033[33m{track}\033[0m")
-  return
   count = 0
   for root, _, files in os.walk(MUSIC_DIR):
     file_count = len([1 for file in files if not file.startswith('.') and file.endswith('.mp3')])
@@ -196,9 +195,9 @@ async def update_db():
 
       await sql("""
         INSERT or IGNORE INTO media
-        (name, artist_id, yt_link, date, track_id, duration, added, rel_path)
-        VALUES (?,?,?,?,?,?,?,?)
-      """, [title, artist_id, comment, date, track, duration, added, rel_path])
+        (name, artist_id, yt_link, date, track_id, duration, added, rel_path, type)
+        VALUES (?,?,?,?,?,?,?,?,?)
+      """, [title, artist_id, comment, date, track, duration, added, rel_path, "s"])
 
       await sql("""
         INSERT or IGNORE INTO media_data
@@ -209,15 +208,18 @@ async def update_db():
       print(f"Media \033[34m{title}\033[0m added: \033[33m{track}\033[0m")
 
 async def check_files():
-  # missing videos in db????
   print("\033[36mCheck Files\033[0m")
   await sql("UPDATE media SET file_exists = 0")
-  media = await sql("SELECT * FROM media_data", fetch_results=True)
-  print(media[0].name)
+  medias = await sql("SELECT * FROM media", fetch_results=True)
   where_track = []
-  return
-  for media in media:
-    file_path = os.path.join(MUSIC_DIR, media.rel_path)
+  for media in medias:
+    if media.type == "s":
+      file_path = os.path.join(MUSIC_DIR, media.rel_path)
+    elif media.type == "v":
+      file_path = os.path.join(VIDEOS_DIR, media.rel_path)
+    else:
+      print(f"No type set for: {media.track_id}")
+      continue
     file_exists = os.path.exists(file_path)
     if file_exists:
       where_track.append(f"track_id = '{media.track_id}'")

@@ -27,7 +27,7 @@ done
 
 printf "${CYAN}Convert files to mp3...${NC}\n"
 
-all_count="$(ls -l $SONGS/*.mp3 $VIDEOS/*.mp4 2> /dev/null | wc -l | xargs)"
+all_count="$(ls -l $SONGS/*.{opus,m4a,mp3} $VIDEOS/*.mp4 2> /dev/null | wc -l | xargs)"
 max_convert_count="$(ls -l $SONGS/*.{opus,m4a} 2> /dev/null | wc -l | xargs)"
 convert_counter=1
 # converts files to mp3 while keeping metadata and moving original files
@@ -48,10 +48,10 @@ for file in $SONGS/*.{m4a,opus}; do
   if ffmpeg -y -hide_banner -loglevel error -i "$file" -ac 2 -b:a 320k $meta "$dirname/${filename%.*}.mp3"; then
     # Move original file after successful conversion
     mv "$file" "$ORIGINAL_FILES"
-    printf "${GREEN}Successfully converted:${NC} $filename\n"
+    printf "\n${GREEN}Successfully converted:${NC} $filename\n"
     ((convert_counter++))
   else
-    printf "${RED}Error converting:${NC} $filename\n"
+    printf "\n${RED}Error converting:${NC} $filename\n"
     continue
   fi
 done
@@ -165,7 +165,7 @@ for file in $SONGS/*.mp3; do
     ffmpeg -loglevel error -i "$file" -metadata track="$track" -codec copy -f mp3 "${file}.tmp" && \
     mv "${file}.tmp" "$file"
 
-    printf "${GREEN}($add_counter/$all_count) Added track ID $track to $(basename "$file")${NC}\n"
+    printf "\n${GREEN}($add_counter/$all_count) Added track ID $track to $(basename "$file")${NC}\n"
   fi
   ((add_counter++))
 done
@@ -213,7 +213,7 @@ for file in $VIDEOS/*.mp4; do
   ffmpeg -loglevel error -i "$file" -metadata comment="$new_comment" -codec copy -f mp4 "${file}.tmp" && \
   mv "${file}.tmp" "$file"
 
-  printf "${GREEN}($add_counter/$all_count) Added track ID $track to $(basename "$file")${NC}\n"
+  printf "\n${GREEN}($add_counter/$all_count) Added track ID $track to $(basename "$file")${NC}\n"
 done
 
 printf "\n${CYAN}Initialize DB${NC}\n"
@@ -411,7 +411,7 @@ CREATE TABLE IF NOT EXISTS media (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
   track_id TEXT UNIQUE,
-  type TEXT NOT NULL
+  type TEXT NOT NULL,
   yt_link TEXT,
   date INTEGER,
   duration INTEGER,
