@@ -12,15 +12,17 @@ from collections import namedtuple
 
 load_dotenv()
 
+API_URL = f"https://{os.environ.get('IP_ADDRESS')}:8000/api/"
 ROOT_PATH = os.environ.get("ROOT_PATH")
 MUSIC_DIR = f"{ROOT_PATH}{os.environ.get('MUSIC_DIR')}"
 VIDEOS_DIR = f"{ROOT_PATH}{os.environ.get('VIDEOS_DIR')}"
+THUMBNAILS_DIR = f"{ROOT_PATH}{os.environ.get('IMAGES_DIR')}/Thumbnails"
 ENV_DIR = f"{ROOT_PATH}{os.environ.get('ENV_DIR')}"
 DB_FILE = f"{ENV_DIR}/data/music.db"
 
 def advanced_print(msg: str, goal: int, current: int):
   terminal_width = shutil.get_terminal_size().columns
-  max_name_length = terminal_width - 15
+  max_name_length = terminal_width - 20
   displayed_msg = (msg[:max_name_length-3] + "...") if len(msg) > max_name_length else msg
   progress_msg = f"({current}/{goal}) -> {displayed_msg}"
   print(f"{progress_msg:<{terminal_width}}", end='\r')
@@ -119,7 +121,7 @@ async def update_db():
       # Check if a media with the track exists and continue if it does
       if await sql("SELECT 1 FROM media m INNER JOIN media_data md ON md.track_id = m.track_id WHERE m.track_id = ?", [track], fetch_success=True):
         continue
-      
+
       advanced_print(f"insert media : {file}", file_count, count)
       artist = getMetadata(file_path, "artist")
       artist_id = artists.get(artist)
@@ -137,6 +139,7 @@ async def update_db():
       duration = getMetadata(file_path, "duration", "")
       added = round(time.time() * 1000)
       rel_path = os.path.basename(file)
+      thumbnail_url = f"{API_URL}/img/Thumbnails/{track}.jpg"
       tags = ""
 
       await sql("""
@@ -147,9 +150,9 @@ async def update_db():
 
       await sql("""
         INSERT INTO media_data
-        (name, artist_id, track_id, tags, type)
-        VALUES (?, ?, ?, ?, ?)
-      """, [title, artist_id, track, tags, "v"])
+        (name, artist_id, track_id, tags, type, img_url)
+        VALUES (?, ?, ?, ?, ?, ?)
+      """, [title, artist_id, track, tags, "v", thumbnail_url])
 
       print(f"Media \033[34m{title}\033[0m added: \033[33m{track}\033[0m")
   count = 0

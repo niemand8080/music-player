@@ -1,18 +1,28 @@
 #!/bin/bash
 
-SONGS="$HOME/Documents/pi/Data/Music/Songs"
-VIDEOS="$HOME/Documents/pi/Data/Music/Videos"
-ORIGINAL_FILES="$HOME/Documents/pi/Data/Music/Originals"
-MISSING_METADATA="$HOME/Documents/pi/Data/Music/Missing-Metadata"
-DB_FILE="$HOME/Documents/pi/python/envs/music-player/data/music.db"
+env=$(cat .env)
 
+ROOT_PATH=$(echo "$env" | grep 'ROOT_PATH*' | tr '=' '\n' | sed 1d)
+
+SONGS="$ROOT_PATH$(echo "$env" | grep 'MUSIC_DIR*' | tr '=' '\n' | sed 1d)"
+VIDEOS="$ROOT_PATH$(echo "$env" | grep 'VIDEOS_DIR*' | tr '=' '\n' | sed 1d)"
+THUMBNAILS="$ROOT_PATH$(echo "$env" | grep 'IMAGES_DIR*' | tr '=' '\n' | sed 1d)/Thumbnails"
+ORIGINAL_FILES="$ROOT_PATH$(echo "$env" | grep 'ORIGINALS_DIR*' | tr '=' '\n' | sed 1d)"
+MISSING_METADATA="$ROOT_PATH$(echo "$env" | grep 'MISSING_METADATA*' | tr '=' '\n' | sed 1d)"
+DB_FILE="$ROOT_PATH$(echo "$env" | grep 'ENV_DIR*' | tr '=' '\n' | sed 1d)/data/music.db"
+
+PICSART_API_KEY=$(echo "$env" | grep 'PICSART_API_KEY*' | tr '=' '\n' | sed 1d)
+
+mkdir -p "$SONGS"
+mkdir -p "$VIDEOS"
+mkdir -p "$THUMBNAILS"
 mkdir -p "$ORIGINAL_FILES"
 mkdir -p "$MISSING_METADATA"
-mkdir -p "$VIDEOS"
 
 RED='\033[31m'
 GREEN='\033[32m'
 CYAN='\033[36m'
+MAGENTA='\033[35m'
 NC='\033[0m'
 
 # moves all audio files to top of the SONGS folder
@@ -62,6 +72,7 @@ fi
 
 printf "${CYAN}Done converting files${NC}\n"
 
+# Suno
 for file in $SONGS/Suno\ *.mp3; do
   if test ! -f "$file"; then  
     continue 
@@ -95,9 +106,10 @@ for file in $MISSING_METADATA/Suno\ -*.mp3; do
   fi
 done
 
-hashs=()
-
 printf "${CYAN}Adding track ids to array${NC}\n"
+hashs=()
+add_track_here=()
+new_all_count=$all_count
 counter=1
 for file in $SONGS/*.mp3; do
   if test ! -f "$file"; then  
@@ -108,6 +120,9 @@ for file in $SONGS/*.mp3; do
     hashs+=("$track")
     echo -ne "\r($counter/$all_count) -> added" 
     ((counter++))
+    ((new_all_count--))
+  else
+    add_track_here+=("$file")
   fi
 done
 
@@ -124,8 +139,10 @@ for file in $VIDEOS/*.mp4; do
   if [ "$track" != "" ]; then
     echo -ne "\r($counter/$all_count) -> added" 
     hashs+=("$track")
-    ((counter++))
+  else
+    echo -ne "\r($counter/$all_count) -> not found" 
   fi
+  ((counter++))
 done
 
 printf "\n${CYAN}Adding track id to each song/video if not present${NC}\n"
@@ -133,17 +150,16 @@ printf "\n${CYAN}Adding track id to each song/video if not present${NC}\n"
 # Add track (id) to each Song if not present
 counter=1
 add_counter=1
-for file in $SONGS/*.mp3; do
+for file in "${add_track_here[@]}"; do
   if test ! -f "$file"; then  
     continue 
   fi
   basename=$(basename "$file")
-  display_name=${basename:0:50}
-  echo -ne "\r($add_counter/$all_count) -> add track ? : $display_name..."
+  display_name=$(printf "%-50.50s" "${basename}")
+  echo -ne "\r⌛ Processing ($add_counter/$new_all_count): ${display_name}"
   ffmpeg -loglevel error -i "$file" -metadata title="${basename%.*}" -codec copy -f mp3 "${file}.tmp" && \
   mv "${file}.tmp" "$file"
   if [ "$(ffprobe -loglevel error -show_entries format_tags=track -of default=noprint_wrappers=1:nokey=1 "$file")" == "" ]; then
-    echo -ne "\r($add_counter/$all_count) -> adding track: $display_name"
     sha="$(sha256sum "$file")"
     track="s${sha:0:8}"
 
@@ -171,7 +187,7 @@ for file in $SONGS/*.mp3; do
 done
 
 ((add_counter--))
-# Add track id to videos if not present
+# Add track id and thumbnail url to videos if not present
 for file in $VIDEOS/*.mp4; do
   if test ! -f "$file"; then  
     continue 
@@ -179,41 +195,105 @@ for file in $VIDEOS/*.mp4; do
   ((add_counter++))
   basename=$(basename "$file")
   display_name=${basename:0:50}
-  echo -ne "\r($add_counter/$all_count) -> add track ? : $display_name..."
-  ffmpeg -loglevel error -i "$file" -metadata title="${basename%.*}" -codec copy -f mp4 "${file}.tmp" && \
-  mv "${file}.tmp" "$file"
+  display_name=$(printf "%-50.50s" "${basename}")
+  echo -ne "\r⌛ Processing ($add_counter/$new_all_count): ${display_name}"
   comment=$(ffprobe -loglevel error -show_entries format_tags=comment -of default=noprint_wrappers=1:nokey=1 "$file")
+  # echo "$display_name:"
+  # echo "first comment: \"$comment\""
+  new_comment=""
+  if ! [[ $comment == yt:* ]]; then
+    sha="$(sha256sum "$file")"
+    track="v${sha:0:8}"
 
-  case $comment in
-    yt:*) continue;;
-  esac
+    while [[ ${hashs[@]} =~ $track ]]; do
+      if (( $counter >= 56 )); then
+        echo "This is really unlikely..."
+        echo "File: $file"
+        continue
+      else
+        track="v${sha:counter:$((8+counter))}"
+        ((counter++))
+      fi
+    done
 
-  echo -ne "\r($add_counter/$all_count) -> adding track: $display_name"
+    new_comment="yt:$comment;track:$track"
 
-  sha="$(sha256sum "$file")"
-  track="v${sha:0:8}"
+    counter=1
 
-  while [[ ${hashs[@]} =~ $track ]]; do
-    if (( $counter >= 56 )); then
-      echo "This is really unlikely..."
-      echo "File: $file"
-      continue
-    else
-      track="v${sha:counter:$((8+counter))}"
+    hashs+=("$track")
+  else
+    track="$(echo "$comment" | sed 's/track:/\n/g' | sed -n 2p | xargs)"
+    comment="$(echo "$comment" | tr ';' '\n' | sed -n 1p)"
+    comment="${comment:3}"
+  fi
+  # echo "second comment: \"$comment\""
+  # echo "new comment: \"$new_comment\""
+  thumbnail=$(ffprobe -loglevel error -show_entries format_tags=thumbnail_url -of default=noprint_wrappers=1:nokey=1 "$file")
+  # echo "first thumbnail: \"$thumbnail\""
+  if ! [[ $thumbnail == https* ]]; then
+    vid="$(echo "$comment" | tr '&' '\n' | sed 's/?v=/\n/g' | sed -n 2p)"
+
+    quality_options=("maxresdefault" "hqdefault" "mqdefault" "default" "0" "1" "2" "3")
+
+    thumbnail_url=""
+    counter=0
+
+    while [ "$thumbnail_url" == "" ] && ! [ "$counter" -eq 8 ]; do
+      quality="${quality_options[$counter]}"
+      img_url="https://img.youtube.com/vi/$vid/$quality.jpg"
+      http_code="$(curl -s -I "$img_url" | head -1 | awk '{print $2}')"
+      if ! [ "$http_code" == "404" ]; then
+        thumbnail_url="$img_url"
+      fi
       ((counter++))
+    done
+
+    response=$(curl -s --request POST \
+        --url https://api.picsart.io/tools/1.0/upscale \
+        --header "X-Picsart-API-Key: $PICSART_API_KEY" \
+        --header 'accept: application/json' \
+        --header 'content-type: multipart/form-data' \
+        --form upscale_factor=6 \
+        --form format=JPG \
+        --form image_url=$thumbnail_url)
+
+    upscaled_url=$(echo "$response" | sed "s/url\": /\n/g" | tr '\"' '\n' | grep "^https*")
+    target_path="$THUMBNAILS/$track.jpg"
+
+    if ! [ "$upscaled_url" == "" ]; then
+      curl -s "$upscaled_url" > "$target_path"
+    else
+      curl -s "$thumbnail_url" > "$target_path"
+      magick "$target_path" -resize 1920x "${target_path}.tmp" && mv "${target_path}.tmp" "$target_path"
     fi
-  done
 
-  new_comment="yt:$comment;track:$track"
-
-  counter=1
-
-  hashs+=("$track")
-  
-  ffmpeg -loglevel error -i "$file" -metadata comment="$new_comment" -codec copy -f mp4 "${file}.tmp" && \
-  mv "${file}.tmp" "$file"
-
-  printf "\n${GREEN}($add_counter/$all_count) Added track ID $track to $(basename "$file")${NC}\n"
+    # echo "thumbnail url: $thumbnail_url"
+    
+    if [ $new_comment == "" ]; then
+      ffmpeg -loglevel error -i "$file" -c copy -f mp4 -movflags use_metadata_tags -map_metadata 0 \
+        -metadata thumbnail_url="$thumbnail_url" \
+        -metadata title="${basename%.*}" \
+        "${file}.tmp" && \
+      mv "${file}.tmp" "$file"
+      printf "\r\n${GREEN}✓ File %d/%d: %s${NC}\n" "$add_counter" "$all_count" "$basename"
+      printf "  ${GREEN}└─ Thumbnail:${NC} ${MAGENTA}%s${NC}\n" "$thumbnail_url"
+    else
+      ffmpeg -loglevel error -i "$file" -c copy -f mp4 -movflags use_metadata_tags -map_metadata 0 \
+        -metadata thumbnail_url="$thumbnail_url" \
+        -metadata title="${basename%.*}" \
+        -metadata comment="$new_comment" \
+        "${file}.tmp" && \
+      mv "${file}.tmp" "$file"
+      printf "\r\n${GREEN}✓ File %d/%d: %s${NC}\n" "$add_counter" "$all_count" "$basename"
+      printf "  ${GREEN}└─ Track ID:${NC} ${MAGENTA}%s${NC}\n" "$track"
+      printf "  ${GREEN}└─ Thumbnail:${NC} ${MAGENTA}%s${NC}\n" "$thumbnail_url"
+    fi
+  elif ! [ "$new_comment" == "" ]; then
+    ffmpeg -loglevel error -i "$file" -metadata comment="$new_comment" -codec copy -f mp4 "${file}.tmp" && \
+    mv "${file}.tmp" "$file"
+    printf "\r\n${GREEN}✓ File %d/%d: %s${NC}\n" "$add_counter" "$all_count" "$basename"
+    printf "  ${GREEN}└─ Track ID:${NC} ${MAGENTA}%s${NC}\n" "$track"
+  fi
 done
 
 printf "\n${CYAN}Initialize DB${NC}\n"
