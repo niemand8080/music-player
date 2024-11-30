@@ -19,6 +19,14 @@ mkdir -p "$THUMBNAILS"
 mkdir -p "$ORIGINAL_FILES"
 mkdir -p "$MISSING_METADATA"
 
+RANDOM_IMAGES="$ROOT_PATH$(echo "$env" | grep 'IMAGES_DIR*' | tr '=' '\n' | sed 1d)/Random"
+PROFILE_IMAGES="$ROOT_PATH$(echo "$env" | grep 'IMAGES_DIR*' | tr '=' '\n' | sed 1d)/Profile"
+NOTFOUND_IMAGES="$ROOT_PATH$(echo "$env" | grep 'IMAGES_DIR*' | tr '=' '\n' | sed 1d)/NotFound"
+
+mkdir -p "$RANDOM_IMAGES"
+mkdir -p "$PROFILE_IMAGES"
+mkdir -p "$NOTFOUND_IMAGES"
+
 RED='\033[31m'
 GREEN='\033[32m'
 CYAN='\033[36m'
@@ -248,16 +256,21 @@ for file in $VIDEOS/*.mp4; do
       ((counter++))
     done
 
-    response=$(curl -s --request POST \
-        --url https://api.picsart.io/tools/1.0/upscale \
-        --header "X-Picsart-API-Key: $PICSART_API_KEY" \
-        --header 'accept: application/json' \
-        --header 'content-type: multipart/form-data' \
-        --form upscale_factor=6 \
-        --form format=JPG \
-        --form image_url=$thumbnail_url)
+    upscaled_url=""
 
-    upscaled_url=$(echo "$response" | sed "s/url\": /\n/g" | tr '\"' '\n' | grep "^https*")
+    if ! [[ "$PICSART_API_KEY" == "" ]]; then
+      response=$(curl -s --request POST \
+          --url https://api.picsart.io/tools/1.0/upscale \
+          --header "X-Picsart-API-Key: $PICSART_API_KEY" \
+          --header 'accept: application/json' \
+          --header 'content-type: multipart/form-data' \
+          --form upscale_factor=6 \
+          --form format=JPG \
+          --form image_url=$thumbnail_url)
+
+      upscaled_url=$(echo "$response" | sed "s/url\": /\n/g" | tr '\"' '\n' | grep "^https*")
+    fi
+
     target_path="$THUMBNAILS/$track.jpg"
 
     if ! [ "$upscaled_url" == "" ]; then
