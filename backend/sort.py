@@ -1,3 +1,4 @@
+import json
 import os
 import shutil
 import sys
@@ -6,6 +7,7 @@ import hashlib
 import asyncio
 import subprocess
 from typing import List
+import requests # type: ignore
 import aiosqlite # type: ignore
 from dotenv import load_dotenv # type: ignore
 from collections import namedtuple
@@ -17,8 +19,10 @@ ROOT_PATH = os.environ.get("ROOT_PATH")
 MUSIC_DIR = f"{ROOT_PATH}{os.environ.get('MUSIC_DIR')}"
 VIDEOS_DIR = f"{ROOT_PATH}{os.environ.get('VIDEOS_DIR')}"
 THUMBNAILS_DIR = f"{ROOT_PATH}{os.environ.get('IMAGES_DIR')}/Thumbnails"
+CHANNEL_THUMBNAILS = f"{ROOT_PATH}{os.environ.get('IMAGES_DIR')}/ChannelThumbnails"
 ENV_DIR = f"{ROOT_PATH}{os.environ.get('ENV_DIR')}"
 DB_FILE = f"{ENV_DIR}/data/music.db"
+GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
 
 def advanced_print(msg: str, goal: int, current: int):
   terminal_width = shutil.get_terminal_size().columns
@@ -74,6 +78,31 @@ async def sql(query: str, params=None, fetch_results=False, fetch_success=False,
   print(f"Failed to execute query after {max_retries} attempts")
   return False if fetch_success else None
 
+async def get_chanel_image(video_id):
+  video_base_url = "https://www.googleapis.com/youtube/v3/videos"
+  params_channel = {
+    'key': GOOGLE_API_KEY,
+    'id': video_id,
+    'part': 'snippet'
+  }
+
+  video_response = requests.get(video_base_url, params=params_channel)
+  video_data = video_response.json()
+  channel_id = video_data['items'][0]['snippet']['channelId']
+  
+  channel_base_url = "https://www.googleapis.com/youtube/v3/channels"
+  channel_params = {
+    'key': GOOGLE_API_KEY,
+    'id': channel_id,
+    'part': 'snippet'
+  }
+
+  response = requests.get(channel_base_url, params=channel_params)
+  channel_data = response.json()
+  thumbnails = channel_data['items'][0]['snippet']['thumbnails']
+  
+  return { "id": channel_id, "thumbnails": thumbnails }
+
 def getMetadata(file_path: str, name: str, tag = "_tags"):
   return subprocess.run([
         'ffprobe',
@@ -116,6 +145,9 @@ async def update_db():
       file_path = os.path.join(root, file)
       comment = getMetadata(file_path, "comment")
       yt_link = ''.join(comment.split('yt:')).split(';')[0]
+      yt_id = ""
+      if yt_link.startswith("https://www.youtube.com"):
+        yt_id = ''.join(yt_link.split("v=")[1]).split("&l")[0]
       track = comment.split('track:')[1]
 
       # Check if a media with the track exists and continue if it does
@@ -144,9 +176,9 @@ async def update_db():
 
       await sql("""
         INSERT or IGNORE INTO media
-        (name, artist_id, yt_link, date, track_id, duration, added, rel_path, type)
-        VALUES (?,?,?,?,?,?,?,?,?)
-      """, [title, artist_id, yt_link, date, track, duration, added, rel_path, "v"])
+        (name, artist_id, yt_link, date, track_id, duration, added, rel_path, type, yt_id)
+        VALUES (?,?,?,?,?,?,?,?,?,?)
+      """, [title, artist_id, yt_link, date, track, duration, added, rel_path, "v", yt_id])
 
       await sql("""
         INSERT INTO media_data
@@ -187,6 +219,9 @@ async def update_db():
 
       title = getMetadata(file_path, "title")
       comment = getMetadata(file_path, "comment")
+      yt_id = ""
+      if comment.startswith("https://www.youtube.com"):
+        yt_id = ''.join(comment.split("v=")[1]).split("&l")[0]
       date = getMetadata(file_path, "date")
       duration = getMetadata(file_path, "duration", "")
       added = round(time.time() * 1000)
@@ -198,9 +233,9 @@ async def update_db():
 
       await sql("""
         INSERT or IGNORE INTO media
-        (name, artist_id, yt_link, date, track_id, duration, added, rel_path, type)
-        VALUES (?,?,?,?,?,?,?,?,?)
-      """, [title, artist_id, comment, date, track, duration, added, rel_path, "s"])
+        (name, artist_id, yt_link, date, track_id, duration, added, rel_path, type, yt_id)
+        VALUES (?,?,?,?,?,?,?,?,?,?)
+      """, [title, artist_id, comment, date, track, duration, added, rel_path, "s", yt_id])
 
       await sql("""
         INSERT or IGNORE INTO media_data
@@ -223,16 +258,52 @@ async def check_files():
     else:
       print(f"No type set for: {media.track_id}")
       continue
+
     file_exists = os.path.exists(file_path)
     if file_exists:
       where_track.append(f"track_id = '{media.track_id}'")
 
   await sql(f"UPDATE media SET file_exists = 1 WHERE {' OR '.join([track for track in where_track])}")
 
+async def add_channel_thumbnails():
+  artists = await sql("SELECT * FROM artists WHERE channel_img_url is NULL", fetch_results=True)
+  count = 0 
+  times = []
+  for artist in artists:
+    start = time.time()
+    count += 1
+    if artist.id == 326 or artist.id == 587:
+      continue
+    estimated_time = 0
+    if times:
+      estimated_time = (sum(times) / len(times)) * (len(artists) - count)
+    print(f"({count}/{len(artists)}) [{estimated_time:.2f}s] -> {artist.name}")
+    
+    media = await sql("SELECT * FROM media WHERE artist_id = ? LIMIT 1", [artist.artist_id], fetch_results=True)
+    media = media[0]
+
+    if media is None:
+      continue
+
+    channel = await get_chanel_image(media.yt_id)
+
+    high_url = channel['thumbnails']['high']['url']
+    target_path = os.path.join(CHANNEL_THUMBNAILS, f"{artist.artist_id}.jpg")
+
+    response = requests.get(high_url, timeout=10)
+
+    with open(target_path, "wb") as f:
+      f.write(response.content)
+
+    rel_path = f"{API_URL}/img/ChannelThumbnails/{artist.artist_id}.jpg"
+
+    await sql("UPDATE artists SET channel_img_url = ?, channel_id = ?, channel_thumbnails = ? WHERE artist_id = ?", [rel_path, channel['id'], json.dumps(channel['thumbnails']), artist.artist_id])
+    times.append(time.time() - start)
+
 async def main():
   await update_db()
   await check_files()
-
+  await add_channel_thumbnails()
 
 if __name__ == "__main__":
   asyncio.run(main())

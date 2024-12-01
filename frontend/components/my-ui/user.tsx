@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useUser } from "@/components/provider/user-provider";
 import {
@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LogOut, Settings, Star } from "lucide-react";
+import { Book, BookCheck, LogOut, Settings, Star } from "lucide-react";
 import { logOut } from "../provider/user-provider";
 import Link from "next/link";
 import { Button } from "../ui/button";
@@ -19,6 +19,7 @@ import { Checkbox } from "../ui/checkbox";
 import { MediaType } from "@/lib/utils";
 import { Skeleton } from "../ui/skeleton";
 import { useMediaAction } from "../provider/media-action-provider";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 
 export const UserAvatar = () => {
   const { user, authorized } = useUser();
@@ -71,38 +72,37 @@ export const UserAvatar = () => {
   );
 };
 
-export const UserStar: React.FC<{ song: MediaType }> = ({ song }) => {
+export const UserStar: React.FC<{ media: MediaType }> = ({ media }) => {
   const { user } = useUser();
   const { toggleFavorite } = useMediaAction();
 
   return (
     <button
       disabled={!user}
-      onClick={() => toggleFavorite(song)}
-      className="font-medium text-primary w-full items-center justify-center flex"
+      onClick={() => toggleFavorite(media)}
+      className="font-medium text-primary w-full items-center justify-center flex p-1"
     >
       <Star
         size={16}
-        className={`${song.favorite && "fill-primary"} hover:fill-primary`}
+        className={`${media.favorite ? "fill-primary" : "fill-background"}`}
       />
     </button>
   );
 };
 
-export const UserStarRating: React.FC<{ song: MediaType }> = ({ song }) => {
-  const [hover, setHover] = useState<number>(0);
+export const UserStarRating: React.FC<{ media: MediaType }> = ({ media }) => {
+  const { setRating } = useMediaAction();
   return (
-    <div className="flex">
+    <div className="flex p-1">
       {[...Array(5)].map((_, index) => (
         <button key={index} className="text-primary">
           <Star
-            onMouseEnter={() => setHover(index)}
-            onMouseLeave={() => setHover(0)}
+            onClick={() => setRating(media, index + 1)}
             size={16}
             className={`${
-              ((song.rating && song.rating > 0) || hover > index) &&
+              (media.rating && media.rating > index) &&
               "fill-primary"
-            } hover:fill-primary`}
+            }`}
           />
         </button>
       ))}
@@ -110,6 +110,27 @@ export const UserStarRating: React.FC<{ song: MediaType }> = ({ song }) => {
   );
 };
 
-export const UserInLibrary: React.FC<{ song: MediaType }> = ({ song }) => {
-  return <Checkbox checked={song.added_to_library || false} />;
+export const UserAddedToLibrary: React.FC<{ media: MediaType }> = ({ media }) => {
+  const { user } = useUser();
+  const { toggleLibrary } = useMediaAction();
+
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        disabled={!user}
+        onClick={() => toggleLibrary(media)}
+        className="font-medium text-primary w-full items-center justify-center flex relative p-1 h-6 min-w-6"
+      >
+        <BookCheck size={16} className={`${!media.added_to_library && "opacity-0"} transition-all absolute`} />
+        <Book size={16} className={`${media.added_to_library && "opacity-0"} transition-all absolute`} />
+      </TooltipTrigger>
+      <TooltipContent>
+        {media.added_to_library ? "Remove from Library" : "Add to Library"}
+      </TooltipContent>
+    </Tooltip>
+  );
+};
+
+export const UserInLibrary: React.FC<{ media: MediaType }> = ({ media }) => {
+  return <Checkbox checked={media.added_to_library || false} />;
 };

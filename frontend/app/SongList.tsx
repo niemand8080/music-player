@@ -27,6 +27,8 @@ import { ContextMenu,
   ContextMenuTrigger 
 } from "@/components/ui/context-menu";
 
+// TODO Slowed and Sped up song
+
 export const SongList = () => {
   const { currentSong } = useAudio();
   const {

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { use, useEffect, useState } from "react";
 import Image from "next/image";
 import { Skeleton } from "../ui/skeleton";
 
@@ -62,9 +62,10 @@ interface SkeletonImgProps {
 
 export const SkeletonImg: React.FC<SkeletonImgProps> = ({
   url,
-  width = 100,
-  height = 100,
+  width = 0,
+  height = 0,
   rounded = 0,
+  ...rest
 }) => {
   const [imageLoaded, setImageLoaded] = useState<boolean>(false);
   return (
@@ -78,6 +79,7 @@ export const SkeletonImg: React.FC<SkeletonImgProps> = ({
     >
       {url && (
         <Image
+          {...rest}
           src={url}
           alt="Song Cover"
           onLoad={() => setImageLoaded(true)}
@@ -91,5 +93,82 @@ export const SkeletonImg: React.FC<SkeletonImgProps> = ({
         style={{ width: `${width}px`, height: `${height}px` }}
       />
     </div>
+  );
+};
+
+interface ImageWithFallbackProps {
+  url: string | "fallback";
+  alt: string;
+  width?: number;
+  height?: number;
+  onLoad?: () => void;
+  fallbackSrc?: { url: string, append: string[] | "yt", extension?: string, startAtIndex?: number };
+  className?: string;
+  fill?: boolean;
+}
+
+export const ImageWithFallback: React.FC<ImageWithFallbackProps> = ({
+  url,
+  alt,
+  width = 0,
+  height = 0,
+  onLoad,
+  fallbackSrc,
+  className,
+  fill = false
+}) => {
+  const [src, setSrc] = useState<string>();
+  const [loaded, serLoaded] = useState<boolean>(false);
+  const [currentFallBack, setCurrentFallBack] = useState<number>(fallbackSrc?.startAtIndex || 0);
+  const yt_fallback = ["maxresdefault", "hqdefault", "mqdefault", "default", "0", "1", "2", "3"];
+
+  const handleLoadError = () => {
+    if (!fallbackSrc) return;
+    let newSrc;
+    if (fallbackSrc.append == "yt") {
+      newSrc = fallbackSrc.url + yt_fallback[currentFallBack] + ".jpg";
+    } else if (fallbackSrc.extension) {
+      newSrc = fallbackSrc.url + fallbackSrc.append[currentFallBack] + fallbackSrc.extension;
+    } else {
+      newSrc = fallbackSrc.url + fallbackSrc.append[currentFallBack];
+    }
+    setSrc(newSrc);
+    setCurrentFallBack(prev => prev += 1);
+  };
+
+  const handleLoad = () => {
+    onLoad && onLoad();
+    serLoaded(true);
+  }
+
+  useEffect(() => {
+    if (url == "fallback") {
+      handleLoadError();
+    } else {
+      setSrc(url);
+    }
+  }, [url]);
+
+  return (
+    <>
+      {src && (
+        <Image
+          src={src}
+          alt={alt}
+          onErrorCapture={handleLoadError}
+          onLoad={handleLoad}
+          fill={fill ? fill : undefined}
+          sizes={fill ? `(max-width: ${width}px) 100vw` : undefined}
+          width={!fill ? width : undefined}
+          height={!fill ? height : undefined}
+          className={`${className} object-cover`}
+        />
+      )}
+      {!src && !loaded && (
+        <Skeleton  
+          style={{ width: !fill ? `${width}px` : "100%", height: !fill ? `${height}px` : "100%" }}
+        />
+      )}
+    </>
   );
 };

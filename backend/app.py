@@ -48,6 +48,7 @@ IMAGES_DIR = f"{ROOT_PATH}{os.environ.get('IMAGES_DIR')}"
 RANDOM_IMAGES_DIR = f"{IMAGES_DIR}/Random"
 PROFILE_IMAGES_DIR = f"{IMAGES_DIR}/Profile"
 NOTFOUND_IMAGES_DIR = f"{IMAGES_DIR}/NotFound"
+THUMBNAIL_IMAGES_DIR = f"{IMAGES_DIR}/Thumbnails"
 
 GMAIL = os.environ.get('GMAIL')
 GMAIL_PASSWORD = os.environ.get('GMAIL_PASSWORD')
@@ -103,17 +104,48 @@ def get_img(path: str):
 ##I -----------------------------IMAGE-----------------------------
 
 ##M -----------------------------MEDIA-----------------------------
+@app.route('/api/search', methods=['GET'])
+async def search():
+    token = request.cookies.get('session_token')
+    query = request.args.get('q')
+    search_for = request.args.get('sf')
+    search_for = search_for.split(',') if search_for is not None else ['s', 'a', 'v']
+    user = await get_user(token)
+
+    query = f"%{query}%"
+    items = []
+
+    medias = await sql("""
+        SELECT 
+            m.*,
+            a.name as artist_name
+        FROM media m
+        INNER JOIN artists a ON m.artist_id = a.artist_id
+        LEFT JOIN media_data md ON m.track_id = md.track_id
+        LEFT JOIN user_media_data umd ON m.track_id = umd.track_id AND umd.user_id = ?
+        WHERE LOWER(m.name) LIKE ?
+    """, [user['id'], query], fetch_results=True)
+    items += add_type_to_namedtuple('media', format_namedtuple(medias))
+
+    artists = await sql("SELECT * FROM artists WHERE LOWER(name) LIKE ?", [query], fetch_results=True)
+    items += add_type_to_namedtuple('artist', format_namedtuple(artists))
+
+    return jsonify(items)
+
 @app.route('/api/medias', methods=['GET'])
 async def medias():
     token = request.cookies.get('session_token')
     amount = request.args.get('a') or -1
     media_type = request.args.get('mt') or 's'
     track = request.args.get('t')
+
+    if track is not None:
+        media_type = track[0:1]
     
     if not int(amount):
         return jsonify({ "error": "Invalid amount" })
     
-    medias = await get_medias(token, amount, track, media_type)
+    medias = await get_medias(token, amount if track is None else 1, track, media_type)
 
     if medias is None:
         return jsonify({ "error": "Invalid media type" })
@@ -184,6 +216,7 @@ async def consume():
 
     if user is not None:
         await update_umd(token, track, "last_consumed", get_time())
+        await update_media_history(user, track)
 
     return send_file(full_path)
 
@@ -228,21 +261,25 @@ async def update_umd(token: tuple[str, None], track_id: str, change: UMDType, pa
     
     try:
         if change == "consume_time_seconds":
-            logger.info(f"{change}: ? + {param}")
+            # logger.info(f"{change}: ? + {param}")
             await sql(f"UPDATE user_media_data SET {change} = {change} + ? WHERE track_id = ? AND user_id = ?", [param, track_id, user_id])
         else:
-            logger.info(f"{change}: {param}")
+            # logger.info(f"{change}: {param}")
             await sql(f"UPDATE user_media_data SET {change} = ? WHERE track_id = ? AND user_id = ?", [param, track_id, user_id])
         return True
     except Exception as e:
         logger.error(f"Error updating user media data: {str(e)}")
         return False
 
+async def update_media_history(user, track):
+    date = f"{datetime.now():%d-%m-%Y}"
+    logger.debug(f"{date}")
+
 async def get_medias(token: str, max_amount = -1, track: str = None, media_type: str = "s"):
     media = None
     if max_amount == -1 and track is not None:
         max_amount = 1
-    else:
+    elif track is None:
         track = "%"
 
     if token is not None:
@@ -257,6 +294,7 @@ async def get_medias(token: str, max_amount = -1, track: str = None, media_type:
                     m.added,
                     m.track_id,
                     m.yt_link,
+                    m.yt_id,
                     m.type,
                     md.artist_id,
                     md.tags,
@@ -290,6 +328,7 @@ async def get_medias(token: str, max_amount = -1, track: str = None, media_type:
                     m.added,
                     m.track_id,
                     m.yt_link,
+                    m.yt_id,
                     m.type,
                     md.artist_id,
                     md.tags,
@@ -1381,6 +1420,11 @@ def get_random_img_rel_path(path: str):
             rel_path = os.path.join(path_basename, files[random_int])
 
         return rel_path
+
+def add_type_to_namedtuple(item_type, array):
+    for item in array:
+        item['item_type'] = item_type
+    return array
 
 def add_random_image(songs):
     imgs = [

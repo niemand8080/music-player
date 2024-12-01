@@ -2,6 +2,7 @@ import axios from "axios";
 import convert from "color-convert";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { useAlert } from "@/components/provider/alert-provider";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -23,7 +24,8 @@ export type MediaType = {
   track_id: string;
   last_consumed: number;
   yt_link: string | null;
-  img_url: string;
+  yt_id: string | null;
+  img_url: string | null;
   type: "s" | "v";
   // uuid
   uuid: string;
@@ -273,7 +275,7 @@ export const sendBeacon = (path: string, data: { [key: string]: unknown }) => {
 // Alert
 export interface AlertType {
   title: string | JSX.Element;
-  type: "success" | "error" | "default";
+  type: "success" | "error" | "default" | "update";
   displayTime: number;
   path?: string;
   uid?: string;

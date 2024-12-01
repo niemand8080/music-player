@@ -16,6 +16,8 @@ import {
   Volume1,
   Volume2,
   X,
+  Youtube,
+  Copy,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -34,14 +36,14 @@ import {
 import { useEffect, useState } from "react";
 import { Skeleton } from "../ui/skeleton";
 import { useDisplay } from "../provider/display-provider";
-import Image from "next/image";
 import { ProgressBar } from "./progress-bar";
+import { ImageWithFallback } from "./img";
 
 export const SongOptions: React.FC<{ song: MediaType }> = ({ song }) => {
   const { user, authorized } = useUser();
-  const { toggleLibrary, toggleFavorite } = useMediaAction();
+  const { toggleLibrary, toggleFavorite, copyTrack } = useMediaAction();
   const { addLast, addNext } = useAudio();
-  const { added_to_library, favorite } = song;
+  const { added_to_library, favorite, yt_link } = song;
   const disable = user == undefined || !authorized;
 
   const getClass = (state: boolean) =>
@@ -61,6 +63,31 @@ export const SongOptions: React.FC<{ song: MediaType }> = ({ song }) => {
           />
         </DropdownMenuTrigger>
         <DropdownMenuContent>
+          <DropdownMenuItem
+            className="group flex gap-1"
+            onClick={() => copyTrack(song)}
+          >
+            <Copy
+              size={16}
+              className={`group-hover:text-primary transition-all duration-300`}
+            />
+            <span>Copy Track</span>
+          </DropdownMenuItem>
+          {yt_link != null && (
+            <>
+              <DropdownMenuItem
+                className="group flex gap-1"
+                onClick={() => window.open(yt_link, "_blank")}
+              >
+                <Youtube
+                  size={16}
+                  className={`group-hover:text-primary transition-all duration-300`}
+                />
+                <span>Open in YT</span>
+              </DropdownMenuItem>
+            </>
+          )}
+          <DropdownMenuSeparator />
           <DropdownMenuItem
             className="group flex gap-1"
             onClick={() => addNext(song)}
@@ -116,9 +143,9 @@ export const SongWithContext: React.FC<{
   children: React.ReactNode;
 }> = ({ song, children }) => {
   const { user, authorized } = useUser();
-  const { toggleLibrary, toggleFavorite } = useMediaAction();
+  const { toggleLibrary, toggleFavorite, copyTrack } = useMediaAction();
   const { addLast, addNext } = useAudio();
-  const { added_to_library, favorite } = song;
+  const { added_to_library, favorite, yt_link } = song;
   const disable = user == undefined || !authorized;
 
   const getClass = (state: boolean) =>
@@ -132,6 +159,31 @@ export const SongWithContext: React.FC<{
     <ContextMenu>
       <ContextMenuTrigger>{children}</ContextMenuTrigger>
       <ContextMenuContent>
+        <ContextMenuItem
+          className="group flex gap-1"
+          onClick={() => copyTrack(song)}
+        >
+          <Copy
+            size={16}
+            className={`group-hover:text-primary transition-all duration-300`}
+          />
+          <span>Copy Track</span>
+        </ContextMenuItem>
+        {yt_link != null && (
+          <>
+            <ContextMenuItem
+              className="group flex gap-1"
+              onClick={() => window.open(yt_link, "_blank")}
+            >
+              <Youtube
+                size={16}
+                className={`group-hover:text-primary transition-all duration-300`}
+              />
+              <span>Open in YT</span>
+            </ContextMenuItem>
+          </>
+        )}
+        <ContextMenuSeparator />
         <ContextMenuItem
           className="group flex gap-1"
           onClick={() => addNext(song)}
@@ -239,38 +291,31 @@ export const CurrentSongDisplay: React.FC<{
           big ? "w-72 h-72" : "w-12 h-12 md:w-40 md:h-40 xl:w-12 xl:h-12"
         } w-12 h-12 block md:hidden xl:block min-w-12 min-h-12 relative`}
       >
-        <Image
-          src={song.img_url}
+        <ImageWithFallback
+          url={song.img_url || "fallback"}
+          fallbackSrc={{ url: `https://img.youtube.com/vi/${song.yt_id}/`, append: "yt" }}
+          fill
           alt="Song Cover"
           onLoad={() => setImageLoaded(true)}
           width={big ? 288 : 48}
           height={big ? 288 : 48}
           className={`${
             imageLoaded ? "opacity-100" : "opacity-0"
-          } absolute rounded-md z-20`}
-        />
-        <Skeleton
-          className={`${imageLoaded ? "opacity-0" : "opacity-100"} ${
-            big ? "h-72 w-72" : "h-12 w-12"
-          }
-          absolute rounded-md`}
+          } absolute rounded-md z-20 h-full`}
         />
       </div>
       <div className="w-40 h-40 hidden md:block xl:hidden min-w-40 min-h-40 relative">
-        <Image
-          src={song.img_url}
+        <ImageWithFallback
+          url={`https://img.youtube.com/vi/${song.yt_id}/maxresdefault.jpg`}
+          fallbackSrc={{ url: `https://img.youtube.com/vi/${song.yt_id}/`, append: "yt" }}
+          fill
           alt="Song Cover"
           onLoad={() => setImageLoaded(true)}
           width={160}
           height={160}
           className={`${
             imageLoaded ? "opacity-100" : "opacity-0"
-          } absolute rounded-md z-20`}
-        />
-        <Skeleton
-          className={`${
-            imageLoaded ? "opacity-0" : "opacity-100"
-          } absolute h-40 w-40 rounded-md`}
+          } absolute rounded-md z-20 h-full`}
         />
       </div>
       <div
@@ -377,20 +422,17 @@ export const SongDisplay: React.FC<{ song: MediaType | undefined }> = ({
         className="w-full h-full flex items-center p-2 gap-3 hover:bg-accent/50 no-select cursor-pointer"
       >
         <div className="w-12 h-12 min-w-12 min-h-12 relative">
-          <Image
-            src={song.img_url}
+          <ImageWithFallback
+            url={`https://img.youtube.com/vi/${song.yt_id}/maxresdefault.jpg`}
+            fallbackSrc={{ url: `https://img.youtube.com/vi/${song.yt_id}/`, append: "yt" }}
+            fill
             alt="Song Cover"
             onLoad={() => setImageLoaded(true)}
             width={48}
             height={48}
             className={`${
               imageLoaded ? "opacity-100" : "opacity-0"
-            } absolute rounded-md`}
-          />
-          <Skeleton
-            className={`${
-              imageLoaded ? "opacity-0" : "opacity-100"
-            } absolute h-12 w-12 rounded-md`}
+            } absolute rounded-md h-full`}
           />
         </div>
         <div className="flex justify-between w-full h-full">

@@ -14,11 +14,12 @@ const toggleVariants = cva(
         default: "bg-transparent",
         outline:
           "border border-input bg-transparent shadow-sm hover:bg-accent hover:text-accent-foreground",
-        primary: "data-[state=on]:text-primary/90 data-[state=on]:bg-primary/20 hover:text-primary/90 hover:bg-primary/20"
+        primary: "data-[state=on]:text-primary/90 data-[state=on]:bg-primary/20 hover:text-primary/90 hover:bg-primary/20",
+        better: "data-[state=on]:text-primary/90 data-[state=on]:bg-primary/20 data-[state=on]:border-primary/50 hover:text-primary/90 hover:bg-primary/20 hover:border-primary/50 backdrop-blur-sm border"
       },
       size: {
         default: "h-9 px-2 min-w-9",
-        sm: "h-8 px-1.5 min-w-8",
+        sm: "h-8 px-1.5 min-w-8", 
         lg: "h-10 px-2.5 min-w-10",
       },
     },

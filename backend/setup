@@ -22,10 +22,12 @@ mkdir -p "$MISSING_METADATA"
 RANDOM_IMAGES="$ROOT_PATH$(echo "$env" | grep 'IMAGES_DIR*' | tr '=' '\n' | sed 1d)/Random"
 PROFILE_IMAGES="$ROOT_PATH$(echo "$env" | grep 'IMAGES_DIR*' | tr '=' '\n' | sed 1d)/Profile"
 NOTFOUND_IMAGES="$ROOT_PATH$(echo "$env" | grep 'IMAGES_DIR*' | tr '=' '\n' | sed 1d)/NotFound"
+CHANNEL_THUMBNAILS="$ROOT_PATH$(echo "$env" | grep 'IMAGES_DIR*' | tr '=' '\n' | sed 1d)/ChannelThumbnails"
 
 mkdir -p "$RANDOM_IMAGES"
 mkdir -p "$PROFILE_IMAGES"
 mkdir -p "$NOTFOUND_IMAGES"
+mkdir -p "$CHANNEL_THUMBNAILS"
 
 RED='\033[31m'
 GREEN='\033[32m'
@@ -374,13 +376,16 @@ sqlite3 $DB_FILE "
 CREATE TABLE IF NOT EXISTS artists (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT UNIQUE NOT NULL,
-  artist_id TEXT UNIQUE NOT NULL
+  artist_id TEXT UNIQUE NOT NULL,
+  channel_img_url TEXT,
+  channel_id TEXT,
+  channel_thumbnails TEXT
 );
 "
 # Create user table
 sqlite3 $DB_FILE "
 CREATE TABLE IF NOT EXISTS user (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id INTEGER UNIQUE PRIMARY KEY AUTOINCREMENT,
   username TEXT UNIQUE NOT NULL,
   email TEXT UNIQUE NOT NULL,
   password TEXT NOT NULL,
@@ -405,15 +410,14 @@ CREATE TABLE IF NOT EXISTS user_sessions (
   FOREIGN KEY (user_id) REFERENCES user(id) 
 );
 "
-# Create user_song_history table
+# Create user_media_history table
 sqlite3 $DB_FILE "
-CREATE TABLE IF NOT EXISTS user_song_history (
+CREATE TABLE IF NOT EXISTS user_media_history (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL,
   track_id TEXT NOT NULL,
-  skipped_count INTEGER DEFAULT 0,
-  listen_time_seconds INTEGER DEFAULT 0,
   date INTEGER NOT NULL,
+  data TEXT NOT NULL,
   FOREIGN KEY (user_id) REFERENCES user(id),
   FOREIGN KEY (track_id) REFERENCES songs(track_id)
     ON UPDATE CASCADE
@@ -506,6 +510,7 @@ CREATE TABLE IF NOT EXISTS media (
   track_id TEXT UNIQUE,
   type TEXT NOT NULL,
   yt_link TEXT,
+  yt_id TEXT,
   date INTEGER,
   duration INTEGER,
   artist_id TEXT,
@@ -513,7 +518,8 @@ CREATE TABLE IF NOT EXISTS media (
   rel_path TEXT UNIQUE,
   file_exists INTEGER DEFAULT 1,
   FOREIGN KEY (artist_id) REFERENCES artists(artist_id)
-    ON UPDATE CASCADE
+    ON UPDATE CASCADE,
+  UNIQUE(name, type)
 );
 "
 # Create media_data table
@@ -533,7 +539,8 @@ CREATE TABLE IF NOT EXISTS media_data (
   FOREIGN KEY (artist_id) REFERENCES artists(artist_id)
     ON UPDATE CASCADE,
   FOREIGN KEY (track_id) REFERENCES media(track_id) 
-    ON UPDATE CASCADE
+    ON UPDATE CASCADE,
+  UNIQUE(name, type)
 );
 "
 # Create user_media_data table
@@ -568,10 +575,10 @@ sqlite3 $DB_FILE "CREATE INDEX IF NOT EXISTS idx_artists_artist_id ON artists(ar
 # Index for user_sessions
 sqlite3 $DB_FILE "CREATE INDEX IF NOT EXISTS idx_user_sessions_user_id ON user_sessions(user_id);"
 sqlite3 $DB_FILE "CREATE INDEX IF NOT EXISTS idx_user_sessions_session_token ON user_sessions(session_token);"
-# Index for user_song_history
-sqlite3 $DB_FILE "CREATE INDEX IF NOT EXISTS idx_user_song_history_user_id ON user_song_history(user_id);"
-sqlite3 $DB_FILE "CREATE INDEX IF NOT EXISTS idx_user_song_history_track_id ON user_song_history(track_id);"
-sqlite3 $DB_FILE "CREATE INDEX IF NOT EXISTS idx_user_song_history_date ON user_song_history(date);"
+# Index for user_media_history
+sqlite3 $DB_FILE "CREATE INDEX IF NOT EXISTS idx_user_media_history_user_id ON user_media_history(user_id);"
+sqlite3 $DB_FILE "CREATE INDEX IF NOT EXISTS idx_user_media_history_track_id ON user_media_history(track_id);"
+sqlite3 $DB_FILE "CREATE INDEX IF NOT EXISTS idx_user_media_history_date ON user_media_history(date);"
 # Index for user_session_data
 sqlite3 $DB_FILE "CREATE INDEX IF NOT EXISTS idx_user_session_data_data ON user_session_data(data);"
 sqlite3 $DB_FILE "CREATE INDEX IF NOT EXISTS idx_user_session_data_session_token ON user_session_data(session_token);"

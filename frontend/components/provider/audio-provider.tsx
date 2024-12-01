@@ -178,7 +178,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // API
   const getSongs = async (amount: number) => {
-    const data = await api(`/media?mt=s&a=${amount}`);
+    const data = await api(`/medias?mt=s&a=${amount}`);
     if (data == false) return [];
     else {
       for (const song of data) {
@@ -297,6 +297,12 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({
     if (isPlaying) setIsPlaying(isPlaying);
     if (repeat) setRepeat(repeat);
     if (playInfinity) setPlayInfinity(playInfinity);
+
+    // if (!currentSong && !nextSongs) {
+    //   const [next, ...remaining] = await getSongs(2);
+    //   setCurrentSong(next);
+    //   setNextSongs(remaining);
+    // }
 
     setTriedLoadingSessionData(true);
   };

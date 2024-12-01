@@ -1,87 +1,89 @@
-"use client"
-import { UserStar } from '@/components/my-ui/user';
-import { AspectRatio } from '@/components/ui/aspect-ratio';
-import { api, MediaType } from '@/lib/utils';
-import React, { useEffect, useState } from 'react'
+"use client";
+import { UserAddedToLibrary, UserStar, UserStarRating } from "@/components/my-ui/user";
+import { Video } from "@/components/my-ui/video";
+import { api, MediaType } from "@/lib/utils";
+import { useRouter, useSearchParams } from "next/navigation";
+import React, { useEffect, useState } from "react";
 
 const Page = () => {
+  const searchParams = useSearchParams();
+  const track = searchParams.get('t');
   const [videos, setVideos] = useState<MediaType[]>([]);
   const [currentVideo, setCurrentVideo] = useState<MediaType>();
 
   useEffect(() => {
     const loadVideos = async () => {
-      const response: MediaType[] = await api('/videos');
-      setVideos(response);
-      setCurrentVideo(response[0])
+      const response: MediaType[] = await api("/medias?mt=v");
+      const [current, ...remaining] = response.sort((a, b) => a.track_id == track ? -1 : b.track_id == track ? 1 : 0);
+
+      setCurrentVideo(current);
+      setVideos(remaining);
     };
     loadVideos();
-  }, []);
+  }, [track]);
 
   return (
-    <div className="w-full h-full flex flex-col">
-      {/* <h1 className='mx-auto text-9xl py-4 font-semibold'>Videos</h1> */}
-      <div className="flex gap-2 md:mx-3 w-full">
+    <div className="w-full h-full flex flex-col gap-5">
+      <div className="flex gap-2 w-full">
         <CurrentVideo video={currentVideo} />
       </div>
-      {/* <div className='mx-auto grid grid-cols-4 gap-5'>
-        {videos.slice(0, 1).map((video, index) => (
+      <div className='grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 w-full'>
+        {videos.length > 0 && videos.map((video, index) => (
           <VideoCard video={video} key={index} />
         ))}
-      </div> */}
+      </div>
     </div>
-  )
+  );
 };
 
-const CurrentVideo: React.FC<{ video: MediaType | undefined }> = ({ video }) => {
-  if (!video)
-    return (
-      <></>
-    )
-  const { name, artist_name, track_id } = video;
+const CurrentVideo: React.FC<{ video: MediaType | undefined }> = ({
+  video,
+}) => {
+  console.log(video?.img_url);
+  if (!video) return <></>;
+  const { name, artist_name } = video;
   return (
     <div className="w-full flex flex-col gap-3">
       <div className="w-full">
-        <AspectRatio ratio={16 / 9}>
-          <video 
-            src={`https://192.168.7.146:8000/api/watch?t=${track_id}`}
-            className="rounded-lg border"
-            controls
-          />
-        </AspectRatio>
+        <Video video={video} />
       </div>
-      <div className='flex justify-between items-center'>
-        <div className='cursor-default'>
+      <div className="flex justify-between items-center">
+        <div className="cursor-default">
           <h3 className="text-xl font-bold">{name}</h3>
           <h4 className="text-lg text-secondary-foreground">{artist_name}</h4>
         </div>
-        <div>
-          <UserStar 
-            
-          />
+        <div className="flex gap-2">
+          <div className="bg-popover hover:bg-primary/10 border rounded-full transition-all">
+            <UserStar media={video} />
+          </div>
+          <div className="bg-popover hover:bg-primary/10 border rounded-full transition-all">
+            <UserStarRating media={video} />
+          </div>
+          <div className="bg-popover hover:bg-primary/10 border rounded-full transition-all">
+            <UserAddedToLibrary media={video} />
+          </div>
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
 const VideoCard: React.FC<{ video: MediaType }> = ({ video }) => {
-  const { name, artist_name, track_id } = video;
-  return (
-    <div className="w-96 h-80 flex flex-col gap-1">
-      <div className="w-full">
-        <AspectRatio ratio={16 / 9}>
-          <video 
-            src={`https://192.168.7.146:8000/api/watch?t=${track_id}`}
-            className="rounded-lg border"
-            controls
-          />
-        </AspectRatio>
-      </div>
-      <div>
-        {name}
-      </div>
-    </div>
-  )
-}
+  const { name } = video;
+  const router = useRouter();
 
-export default Page
+  const handlePlay = () => {
+    window.location.href = `/videos?t=${video.track_id}`;
+  };
+
+  return (
+    <div className="w-full h-80 flex flex-col gap-1">
+      <div className="w-full">
+        <Video video={video} onPlay={handlePlay} loadVideo={false} />
+      </div>
+      <div>{name}</div>
+    </div>
+  );
+};
+
+export default Page;

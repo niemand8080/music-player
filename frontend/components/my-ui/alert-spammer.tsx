@@ -106,7 +106,7 @@ const Alert: React.FC<{
     };
   }, [timeLeft, stopCountdown, alert, display, removeAlert]);
 
-  if (extraClasses == "") return null;
+  if (extraClasses == "" || alert.type == "update") return null;
 
   return (
     <div
@@ -121,7 +121,7 @@ const Alert: React.FC<{
         cursor-pointer hover:scale-105 transition-all duration-300 bg-background justify-between flex items-center 
         hover:shadow-lg ${extraClasses}`}
     >
-      <span>{title}</span>
+      <span className="w-full">{title}</span>
       <Button 
         onClick={(e) => {
           e.preventDefault();

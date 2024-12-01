@@ -14,6 +14,7 @@ import { AlertSpammer } from "@/components/my-ui/alert-spammer";
 import { Background } from "./Background";
 import { SongList } from "./SongList";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { Search } from "./Search";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -57,6 +58,7 @@ export default function RootLayout({
             <AlertSpammer>
               <UserProvider>
                 <MediaActionProvider>
+                  <Search />
                   <Header />
                   <AudioProvider>
                     <DisplayProvider>
