@@ -5,9 +5,9 @@ import { useUser } from "./user-provider";
 import { useAlert } from "./alert-provider";
 
 interface MediaActionProvider {
-  toggleLibrary: (media: MediaType) => void;
-  toggleFavorite: (media: MediaType) => void;
-  setRating: (media: MediaType, rating: number) => void;
+  toggleLibrary: (media: MediaType) => Promise<MediaType>;
+  toggleFavorite: (media: MediaType) => Promise<MediaType>;
+  setRating: (media: MediaType, rating: number) => Promise<MediaType>;
   copyTrack: (media: MediaType) => void;
 }
 
@@ -21,8 +21,8 @@ export const MediaActionProvider: React.FC<{ children: React.ReactNode }> = ({
   const { authorized } = useUser();
   const { newAlert } = useAlert();
 
-  const toggleLibrary = async (media: MediaType) => {
-    if (!authorized) return;
+  const toggleLibrary = async (media: MediaType): Promise<MediaType> => {
+    if (!authorized) return media;
     const newValue = !media.added_to_library;
     const updated = await updateUMD(
       media.track_id,
@@ -34,23 +34,26 @@ export const MediaActionProvider: React.FC<{ children: React.ReactNode }> = ({
       if (newValue) newAlert("success", "Added to Library");
       else newAlert("success", "Removed from Library");
     }
+    return media
   };
 
-  const toggleFavorite = async (media: MediaType) => {
-    if (!authorized) return;
+  const toggleFavorite = async (media: MediaType): Promise<MediaType> => {
+    if (!authorized) return media;
     const newValue = !media.favorite;
     const updated = await updateUMD(media.track_id, "favorite", newValue);
     if (updated) media.favorite = newValue;
     if (newValue) newAlert("success", "Marked Favorite");
     else newAlert("success", "Favorite Revoked");
+    return media
   };
 
-  const setRating = async (media: MediaType, rating: number) => {
-    if (!authorized) return;
+  const setRating = async (media: MediaType, rating: number): Promise<MediaType> => {
+    if (!authorized) return media;
     const newValue = rating == media.rating ? 0 : rating;
     const updated = await updateUMD(media.track_id, "rating", newValue);
     if (updated) media.rating = newValue;
     newAlert('update');
+    return media
   };
 
   const copyTrack = (media: MediaType) => {
@@ -90,7 +93,7 @@ const updateUMD = async (
     if (to) to = 1;
     else to = 0;
   }
-  const data = await api("/uumd", "POST", { track_id, change, to });
+  const data = await api("/uud", "POST", { target_id: track_id, change, to, type: "media" });
   if (data == false) return false;
   else return true;
 };

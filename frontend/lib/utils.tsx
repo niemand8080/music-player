@@ -2,10 +2,20 @@ import axios from "axios";
 import convert from "color-convert";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { useAlert } from "@/components/provider/alert-provider";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
+}
+
+// Artist
+export type ArtistType = {
+  name: string;
+  artist_id: string;
+  channel_img_url: string;
+  channel_id: string;
+  // if logged in
+  favorite: boolean | null;
+  rating: number | null;
 }
 
 // Media
@@ -104,6 +114,7 @@ type PageType = {
   simpleHeader: boolean;
   playerHidden: boolean;
   noPadding: boolean;
+  tags: string[];
   icon:
     | "activity"
     | "music-2"
@@ -121,13 +132,14 @@ type PageType = {
     | "tv-minimal";
 };
 
-export const pageSettings: PageType[] = [
+const pages: PageType[] = [
   {
     path: /\/auth*/,
     simpleHeader: true,
     playerHidden: true,
     noPadding: true,
     icon: "fingerprint",
+    tags: ["auth", "login", "security"],
   },
   {
     path: "/auth/sign-up",
@@ -135,6 +147,7 @@ export const pageSettings: PageType[] = [
     playerHidden: true,
     noPadding: true,
     icon: "user-plus",
+    tags: ["auth", "registration", "security"],
   },
   {
     path: "/auth/verify-email",
@@ -142,6 +155,7 @@ export const pageSettings: PageType[] = [
     playerHidden: true,
     noPadding: true,
     icon: "badge-check",
+    tags: ["auth", "verification", "email", "security"],
   },
   {
     path: "/link-grabber",
@@ -149,6 +163,7 @@ export const pageSettings: PageType[] = [
     playerHidden: true,
     noPadding: true,
     icon: "music-2",
+    tags: ["tools", "import", "music"],
   },
   {
     path: "/visualizer",
@@ -156,6 +171,7 @@ export const pageSettings: PageType[] = [
     playerHidden: false,
     noPadding: true,
     icon: "audio-lines",
+    tags: ["music", "player", "visualization"],
   },
   {
     path: "/library",
@@ -163,6 +179,7 @@ export const pageSettings: PageType[] = [
     playerHidden: false,
     noPadding: false,
     icon: "library",
+    tags: ["music", "collection", "library"],
   },
   {
     path: "/discover",
@@ -170,6 +187,7 @@ export const pageSettings: PageType[] = [
     playerHidden: false,
     noPadding: false,
     icon: "search",
+    tags: ["music", "discovery", "browse"],
   },
   {
     path: "/playlists",
@@ -177,6 +195,7 @@ export const pageSettings: PageType[] = [
     playerHidden: false,
     noPadding: false,
     icon: "list-music",
+    tags: ["music", "playlists", "collection"],
   },
   {
     path: "/for-you",
@@ -184,6 +203,7 @@ export const pageSettings: PageType[] = [
     playerHidden: false,
     noPadding: false,
     icon: "heart",
+    tags: ["music", "recommendations", "personalized"],
   },
   {
     path: "/settings",
@@ -191,6 +211,7 @@ export const pageSettings: PageType[] = [
     playerHidden: true,
     noPadding: false,
     icon: "settings",
+    tags: ["settings", "configuration", "preferences"],
   },
   {
     path: "/subscriptions",
@@ -198,6 +219,7 @@ export const pageSettings: PageType[] = [
     playerHidden: true,
     noPadding: false,
     icon: "dollar-sign",
+    tags: ["premium", "subscription", "billing"],
   },
   {
     path: /\/info\/*/,
@@ -205,6 +227,7 @@ export const pageSettings: PageType[] = [
     playerHidden: true,
     noPadding: false,
     icon: "info",
+    tags: ["information", "help", "support"],
   },
   {
     path: /\/videos\/*/,
@@ -212,6 +235,7 @@ export const pageSettings: PageType[] = [
     playerHidden: true,
     noPadding: false,
     icon: "tv-minimal",
+    tags: ["videos", "media", "content"],
   },
   {
     path: /\/*/,
@@ -219,6 +243,7 @@ export const pageSettings: PageType[] = [
     playerHidden: false,
     noPadding: false,
     icon: "music-2",
+    tags: ["general", "music", "default"],
   },
 ];
 
@@ -226,7 +251,7 @@ export const getPageSetting = (
   pathname: string,
   setting: "simpleHeader" | "playerHidden" | "noPadding" | "icon"
 ): boolean | string => {
-  const page = pageSettings.filter((page) => {
+  const page = pages.filter((page) => {
     if (typeof page.path == "string") return page.path == pathname;
     if (page.path.test(pathname)) return true;
     else return false;
@@ -234,6 +259,15 @@ export const getPageSetting = (
   if (!page) return false;
   return page[setting];
 };
+
+export const filterPages = (query: string): PageType[] => {
+  for (const page of pages) {
+    let score = 0;
+    for (const tag in page.tags) {
+
+    }
+  }
+}
 
 // simple API request
 export const api = async (

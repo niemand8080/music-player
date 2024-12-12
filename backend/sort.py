@@ -14,7 +14,7 @@ from collections import namedtuple
 
 load_dotenv()
 
-API_URL = f"https://{os.environ.get('IP_ADDRESS')}:8000/api/"
+API_URL = f"https://{os.environ.get('IP_ADDRESS')}:8000/api"
 ROOT_PATH = os.environ.get("ROOT_PATH")
 MUSIC_DIR = f"{ROOT_PATH}{os.environ.get('MUSIC_DIR')}"
 VIDEOS_DIR = f"{ROOT_PATH}{os.environ.get('VIDEOS_DIR')}"
@@ -304,6 +304,12 @@ async def main():
   await update_db()
   await check_files()
   await add_channel_thumbnails()
+
+  medias = await sql("SELECT * FROM media_data", fetch_results=True)
+  for media in medias:
+    o_media = await sql("SELECT * FROM media WHERE track_id = ?", [media.track_id], fetch_success=True)
+    if not o_media:
+      print(f"{media.name} has no entry in media table but in media_data")
 
 if __name__ == "__main__":
   asyncio.run(main())

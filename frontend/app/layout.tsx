@@ -15,6 +15,7 @@ import { Background } from "./Background";
 import { SongList } from "./SongList";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Search } from "./Search";
+import { ArtistActionProvider } from "@/components/provider/artist-action-provider";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -57,20 +58,22 @@ export default function RootLayout({
           <TooltipProvider>
             <AlertSpammer>
               <UserProvider>
-                <MediaActionProvider>
-                  <Search />
-                  <Header />
-                  <AudioProvider>
-                    <DisplayProvider>
-                      <Background />
-                      <Padding>
-                        <SongList />
-                        {children}
-                      </Padding>
-                    </DisplayProvider>
-                  </AudioProvider>
-                  <PageProtector />
-                </MediaActionProvider>
+                <ArtistActionProvider>
+                  <MediaActionProvider>
+                    <Header />
+                    <AudioProvider>
+                      <DisplayProvider>
+                        <Background />
+                        <Search />
+                        <Padding>
+                          <SongList />
+                          {children}
+                        </Padding>
+                      </DisplayProvider>
+                    </AudioProvider>
+                    <PageProtector />
+                  </MediaActionProvider>
+                </ArtistActionProvider>
               </UserProvider>
             </AlertSpammer>
             <Toaster />

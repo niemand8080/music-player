@@ -13,7 +13,7 @@ const Page = () => {
   const [cctx, setCctx] = useState<CanvasRenderingContext2D | null>(null);
 
   useEffect(() => {
-    console.log(analyser);
+    // console.log(analyser);
     if (analyser == null) return;
     const bufferLength = analyser.frequencyBinCount;
     const freqData = new Uint8Array(bufferLength);

@@ -1,8 +1,8 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
-    darkMode: ["class"],
-    content: [
+	darkMode: ["class"],
+	content: [
     "./pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
@@ -64,9 +64,31 @@ const config: Config = {
           "0%,70%,100%": { opacity: "1" },
           "20%,50%": { opacity: "0" },
         },
+				"loading-dot": {
+					"0%, 100%": {
+						opacity: "1",
+						background: "hsl(var(--foreground))",
+						transform: "scale(1)"
+					},
+					"50%": {
+						opacity: "0.1",
+					}
+				},
+				"loading-icon": {
+					"0%, 100%": {
+						opacity: "1",
+						color: "hsl(var(--foreground))",
+						transform: "scale(1)"
+					},
+					"50%": {
+						opacity: "0.1",
+					}
+				}
       },
       animation: {
         "caret-blink": "caret-blink 1.25s ease-out infinite",
+				"loading-dot": "loading-dot 3s ease-in-out infinite",
+				"loading-icon": "loading-icon 3s ease-in-out infinite"
       },
   		borderRadius: {
   			lg: 'var(--radius)',
@@ -81,6 +103,14 @@ const config: Config = {
 			},
 			backdropBlur: {
 				rm: "1px"
+			},
+			animationDelay: {
+				450: "450ms",
+				600: "600ms",
+			},
+			transitionDelay: {
+				450: "450ms",
+				600: "600ms",
 			}
   	}
   },

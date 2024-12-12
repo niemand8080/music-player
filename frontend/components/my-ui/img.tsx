@@ -1,4 +1,4 @@
-import React, { use, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import Image from "next/image";
 import { Skeleton } from "../ui/skeleton";
 
@@ -137,6 +137,7 @@ export const ImageWithFallback: React.FC<ImageWithFallbackProps> = ({
   };
 
   const handleLoad = () => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
     onLoad && onLoad();
     serLoaded(true);
   }
@@ -147,6 +148,7 @@ export const ImageWithFallback: React.FC<ImageWithFallbackProps> = ({
     } else {
       setSrc(url);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [url]);
 
   return (

@@ -382,6 +382,20 @@ CREATE TABLE IF NOT EXISTS artists (
   channel_thumbnails TEXT
 );
 "
+# Create user_artist_data table
+sqlite3 $DB_FILE "
+CREATE TABLE IF NOT EXISTS user_artist_data (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  artist_id TEXT NOT NULL,
+  favorite INTEGER DEFAULT 0,
+  rating INTEGER DEFAULT 0 CHECK (rating >= 0 AND rating <= 5),
+  FOREIGN KEY (user_id) REFERENCES user(id),
+  FOREIGN KEY (artist_id) REFERENCES artists(artist_id)
+    ON UPDATE CASCADE,
+  UNIQUE (user_id, artist_id)
+);
+"
 # Create user table
 sqlite3 $DB_FILE "
 CREATE TABLE IF NOT EXISTS user (

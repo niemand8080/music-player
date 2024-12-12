@@ -109,26 +109,75 @@ async def search():
     token = request.cookies.get('session_token')
     query = request.args.get('q')
     search_for = request.args.get('sf')
+    artist_id = request.args.get('aid')
+    artist_id = "%" if artist_id == "" else artist_id
     search_for = search_for.split(',') if search_for is not None else ['s', 'a', 'v']
     user = await get_user(token)
 
     query = f"%{query}%"
     items = []
 
-    medias = await sql("""
-        SELECT 
-            m.*,
-            a.name as artist_name
-        FROM media m
-        INNER JOIN artists a ON m.artist_id = a.artist_id
-        LEFT JOIN media_data md ON m.track_id = md.track_id
-        LEFT JOIN user_media_data umd ON m.track_id = umd.track_id AND umd.user_id = ?
-        WHERE LOWER(m.name) LIKE ?
-    """, [user['id'], query], fetch_results=True)
-    items += add_type_to_namedtuple('media', format_namedtuple(medias))
+    include_s = True if "s" in search_for != -1 else False
+    include_v = True if "v" in search_for != -1 else False
+    include_a = True if "a" in search_for != -1 else False
+    include_all = not include_a and not include_s and not include_v
 
-    artists = await sql("SELECT * FROM artists WHERE LOWER(name) LIKE ?", [query], fetch_results=True)
-    items += add_type_to_namedtuple('artist', format_namedtuple(artists))
+    if include_s or include_v or include_all:
+        medias = await sql("""
+            SELECT 
+                m.file_exists,
+                m.name,
+                m.date,
+                m.duration,
+                m.added,
+                m.track_id,
+                m.yt_link,
+                m.yt_id,
+                m.type,
+                md.artist_id,
+                md.tags,
+                md.consume_time_seconds,
+                md.last_consumed,
+                md.album,
+                md.genre,
+                md.img_url,
+                a.name as artist_name,
+                umd.favorite,
+                umd.rating,
+                umd.last_consumed as i_last_consumed,
+                umd.added_to_library,
+                umd.skip_count,
+                umd.consume_time_seconds as my_consume_time_seconds
+            FROM media m
+            INNER JOIN artists a ON m.artist_id = a.artist_id
+            LEFT JOIN media_data md ON m.track_id = md.track_id
+            LEFT JOIN user_media_data umd ON m.track_id = umd.track_id AND umd.user_id = ?
+            WHERE LOWER(m.name) LIKE ? AND LOWER(md.artist_id) LIKE ?
+        """, [user['id'], query, artist_id], fetch_results=True)
+        
+        remaining = []
+
+        for media in medias:
+            if include_all:
+                remaining.append(media)
+            if media.type == "s" and include_s:
+                remaining.append(media)
+            if media.type == "v" and include_v:
+                remaining.append(media)
+        
+        items += add_type_to_namedtuple('media', format_namedtuple(remaining))
+
+    if include_a or include_all and artist_id == "%":
+        artists = await sql("""
+            SELECT 
+                a.*,
+                uad.favorite, 
+                uad.rating 
+            FROM artists a 
+            LEFT JOIN user_artist_data uad ON uad.user_id = ? AND uad.artist_id = a.artist_id
+            WHERE LOWER(a.name) LIKE ?
+        """, [user['id'], query], fetch_results=True)
+        items += add_type_to_namedtuple('artist', format_namedtuple(artists))
 
     return jsonify(items)
 
@@ -170,7 +219,7 @@ async def update_consume_time():
     updated = True
 
     if track:
-        updated = await update_umd(token, track, 'consume_time_seconds', time)
+        updated = await update_ud(token, track, 'consume_time_seconds', time)
 
     if updated:
         return jsonify({ "success": "Successfully updated consume time" })
@@ -215,29 +264,36 @@ async def consume():
     await sql("UPDATE media_data SET last_consumed = ? WHERE track_id = ?", [get_time(), track])
 
     if user is not None:
-        await update_umd(token, track, "last_consumed", get_time())
+        await update_ud(token, track, "last_consumed", get_time())
         await update_media_history(user, track)
 
     return send_file(full_path)
 
-@app.route('/api/uumd', methods=['POST'])
-async def uumd():
+@app.route('/api/uud', methods=['POST'])
+async def uud():
     data = request.json
     token = request.cookies.get('session_token')
-    track_id = data.get('track_id')
+    track_id = data.get('target_id')
     change = data.get('change')
     to = data.get('to')
+    target_type = data.get('type')
 
-    updated = await update_umd(token, track_id, change, to)
+    artist = True if target_type == "artist" else False
+
+    updated = await update_ud(token, track_id, change, to, artist)
 
     if updated:
         return jsonify({ "success": True , "message": "Successfully Changed user specific data" })
     else:
         return jsonify({ "success": False , "error": "Not Authorized" })
 
-UMDType = Literal["last_consumed", "consume_time_seconds", "favorite", "rating", "first_consumed", "added_to_library"]
+UDType = Literal["last_consumed", "consume_time_seconds", "favorite", "rating", "first_consumed", "added_to_library"]
 
-async def update_umd(token: tuple[str, None], track_id: str, change: UMDType, param: tuple[str, int]) -> bool:
+async def update_ud(token: tuple[str, None], target_id: str, change: UDType, param: tuple[str, int], artist = False) -> bool:
+    user_data_table = "user_artist_data" if artist else "user_media_data"
+    data_table = "artists" if artist else "media_data"
+    id_name = "artist_id" if artist else "track_id"
+
     if token is None:
         logger.error("No token provided")
         return False
@@ -246,29 +302,29 @@ async def update_umd(token: tuple[str, None], track_id: str, change: UMDType, pa
     if user is None:
         logger.error(f"No user found for token: {token}")
         return False
-
-    media = await sql("SELECT 1 FROM media_data WHERE track_id = ?", [track_id], fetch_success=True)
-    if not media:
-        logger.error(f"No Media found for track_id: {track_id}")
+    
+    target = await sql(f"SELECT 1 FROM {data_table} WHERE {id_name} = ?", [target_id], fetch_success=True)
+    if not target:
+        logger.error(f"No Media/Artist found for {id_name}: {target_id}")
         return False
     
     user_id = user['id']
-    uvd = await sql("SELECT 1 FROM user_media_data WHERE track_id = ? AND user_id = ?", [track_id, user_id], fetch_success=True)
-    if not uvd:
-        if not await sql("INSERT INTO user_media_data (user_id, track_id) VALUES (?,?)", [user_id, track_id], fetch_success=True):
-            logger.error(f"Failed to create instance for: (user_id: {user_id}, track_id: {track_id})")
+    ud = await sql(f"SELECT 1 FROM {user_data_table} WHERE {id_name} = ? AND user_id = ?", [target_id, user_id], fetch_success=True)
+    if not ud:
+        if not await sql(f"INSERT INTO {user_data_table} (user_id, {id_name}) VALUES (?,?)", [user_id, target_id], fetch_success=True):
+            logger.error(f"Failed to create instance for: (user_id: {user_id}, {id_name}: {target_id})")
             return False
     
     try:
         if change == "consume_time_seconds":
             # logger.info(f"{change}: ? + {param}")
-            await sql(f"UPDATE user_media_data SET {change} = {change} + ? WHERE track_id = ? AND user_id = ?", [param, track_id, user_id])
+            await sql(f"UPDATE {user_data_table} SET {change} = {change} + ? WHERE {id_name} = ? AND user_id = ?", [param, target_id, user_id])
         else:
             # logger.info(f"{change}: {param}")
-            await sql(f"UPDATE user_media_data SET {change} = ? WHERE track_id = ? AND user_id = ?", [param, track_id, user_id])
+            await sql(f"UPDATE {user_data_table} SET {change} = ? WHERE {id_name} = ? AND user_id = ?", [param, target_id, user_id])
         return True
     except Exception as e:
-        logger.error(f"Error updating user media data: {str(e)}")
+        logger.error(f"Error updating user media/artist data: {str(e)}")
         return False
 
 async def update_media_history(user, track):
@@ -1422,9 +1478,13 @@ def get_random_img_rel_path(path: str):
         return rel_path
 
 def add_type_to_namedtuple(item_type, array):
+    new_array = []
     for item in array:
-        item['item_type'] = item_type
-    return array
+        new_item = {}
+        new_item['data'] = item
+        new_item['type'] = item_type
+        new_array.append(new_item)
+    return new_array
 
 def add_random_image(songs):
     imgs = [
